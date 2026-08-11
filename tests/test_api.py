@@ -30,7 +30,7 @@ def test_destructive_command_is_blocked():
 def test_sensitive_command_requires_confirmation():
     response = client.post("/command", json={"command": "shutdown"})
     assert response.status_code == 200
-    assert response.json()["status"] == "confirm_required"
+    assert response.json()["status"] == "confirmation_required"
 
 
 def test_router_memory_intent():
