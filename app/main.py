@@ -12,11 +12,12 @@ from app.idempotency import idempotency
 from app.memory import memory
 from app.permissions import Risk, classify
 from app.providers import get_provider
+from app.reminders import reminders
 from app.router import route
 from app.skills import SKILLS, resolve
 from app.tasks import tasks
 
-app = FastAPI(title="Vayu", version="0.7.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.8.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
@@ -62,6 +63,16 @@ def get_audit(limit: int = 50):
 @app.get("/tasks")
 def get_tasks(include_completed: bool = False, limit: int = 50):
     return {"tasks": tasks.list(include_completed=include_completed, limit=limit)}
+
+
+@app.get("/reminders")
+def get_reminders(include_dismissed: bool = False, limit: int = 50):
+    return {"reminders": reminders.list(include_dismissed=include_dismissed, limit=limit)}
+
+
+@app.get("/reminders/due")
+def get_due_reminders(limit: int = 50):
+    return {"reminders": reminders.due(limit=limit)}
 
 
 def _respond(
