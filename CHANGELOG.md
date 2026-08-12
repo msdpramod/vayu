@@ -11,6 +11,9 @@
 - Bound confirmation tokens to the exact command, stored only token hashes, and prevented replay.
 - Kept legacy `confirmed` input for compatibility while removing its authority to approve execution.
 - Added persistence, replay, cross-command, API-flow, and idempotency regression tests for confirmations.
+- Repaired GitHub Actions test execution and updated a stale confirmation regression expectation; CI returned green with 36 passing tests before feature work resumed.
+- Added durable SQLite-backed local tasks with explicit `task_add`, `tasks`, and `task_complete` skills.
+- Added `GET /tasks`, command-level task workflows, persistence tests, and explicit-skill registry coverage.
 
 ## v2026.08.12
 
