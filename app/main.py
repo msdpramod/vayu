@@ -2,22 +2,24 @@ from __future__ import annotations
 
 from typing import Literal
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from app.audit import audit
+from app.idempotency import idempotency
 from app.memory import memory
 from app.permissions import Risk, classify
 from app.providers import get_provider
 from app.router import route
 from app.skills import SKILLS, resolve
 
-app = FastAPI(title="Vayu", version="0.4.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.5.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
     command: str = Field(min_length=1, max_length=500)
     confirmed: bool = False
+    request_id: str | None = Field(default=None, min_length=8, max_length=128)
 
 
 class CommandResponse(BaseModel):
@@ -57,15 +59,13 @@ def _respond(raw: str, risk: Risk, status: str, intent: str, reply: str, execute
     return CommandResponse(status=status, intent=intent, reply=reply, executed=executed)
 
 
-@app.post("/command", response_model=CommandResponse)
-def command(req: CommandRequest):
-    raw = req.command.strip()
+def _execute_command(raw: str, confirmed: bool) -> CommandResponse:
     risk = classify(raw)
 
     if risk == Risk.BLOCKED:
         return _respond(raw, risk, "blocked", "high_risk_action", "Vayu blocked this high-risk command.")
 
-    if risk == Risk.CONFIRM and not req.confirmed:
+    if risk == Risk.CONFIRM and not confirmed:
         return _respond(
             raw,
             risk,
@@ -107,3 +107,24 @@ def command(req: CommandRequest):
 
     brain = get_provider().reason(intent.payload)
     return _respond(raw, risk, "unsupported", "reason", brain.text, executed=False)
+
+
+@app.post("/command", response_model=CommandResponse)
+def command(req: CommandRequest):
+    raw = req.command.strip()
+    fingerprint = f"{raw}\nconfirmed={req.confirmed}"
+
+    if req.request_id:
+        try:
+            cached = idempotency.get(req.request_id, fingerprint)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        if cached is not None:
+            return CommandResponse(**cached)
+
+    response = _execute_command(raw, req.confirmed)
+
+    if req.request_id:
+        idempotency.put(req.request_id, fingerprint, response.model_dump())
+
+    return response
