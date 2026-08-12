@@ -8,6 +8,8 @@
 - Added a durable command audit trail covering blocked, confirmation-required, successful, memory, and AI-fallback decisions.
 - Added redaction for common password, token, API-key, and secret labels before audit persistence.
 - Added `/audit` plus audit persistence, safety, and redaction tests.
+- Added a durable idempotency store for caller request IDs so retried commands can be deduplicated safely.
+- Added persistence, collision, and reset tests for the idempotency layer.
 - Updated runtime documentation and ignored local database files.
 
 ## v2026.08.11
