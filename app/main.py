@@ -133,31 +133,6 @@ def _execute_command(raw: str, confirmation_token: str | None) -> CommandRespons
         names = ", ".join(sorted(SKILLS))
         return _respond(raw, risk, "ok", "skills", f"Installed skills: {names}.", executed=True)
 
-    if intent.name == "task_add":
-        if not intent.payload:
-            return _respond(raw, risk, "unsupported", "task_add", "Tell me what task to add.")
-        task = tasks.add(intent.payload)
-        return _respond(raw, risk, "ok", "task_add", f"Task {task['id']} added: {task['title']}", executed=True)
-
-    if intent.name == "tasks":
-        items = tasks.list()
-        if not items:
-            return _respond(raw, risk, "ok", "tasks", "You have no open tasks.", executed=True)
-        summary = "; ".join(f"{item['id']}: {item['title']}" for item in reversed(items))
-        return _respond(raw, risk, "ok", "tasks", f"Open tasks: {summary}", executed=True)
-
-    if intent.name == "task_complete":
-        try:
-            task_id = int(intent.payload)
-        except (TypeError, ValueError):
-            return _respond(raw, risk, "unsupported", "task_complete", "Use 'complete task <id>' with a numeric task ID.")
-        task = tasks.complete(task_id)
-        if task is None:
-            return _respond(raw, risk, "unsupported", "task_complete", f"Task {task_id} does not exist.")
-        if task["status"] != "completed":
-            return _respond(raw, risk, "unsupported", "task_complete", f"Task {task_id} could not be completed.")
-        return _respond(raw, risk, "ok", "task_complete", f"Task {task_id} completed: {task['title']}", executed=True)
-
     if risk == Risk.CONFIRM:
         return _respond(
             raw,
