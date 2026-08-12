@@ -17,6 +17,8 @@
 - Added durable timezone-aware reminders with explicit `reminder_add`, `reminders`, and `reminder_dismiss` skills.
 - Added `GET /reminders` and read-only `GET /reminders/due` APIs as the safe foundation for future notifier adapters.
 - Normalized reminder timestamps to UTC, rejected ambiguous timezone-less scheduling, indexed due-reminder queries, and added persistence/API/due-state regression tests.
+- Added a durable, idempotent local notification outbox that stages due reminders exactly once without invoking external or OS side effects.
+- Added `POST /reminders/dispatch` and `GET /notifications` plus persistence and duplicate-dispatch regression tests.
 
 ## v2026.08.12
 
