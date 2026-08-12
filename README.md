@@ -15,7 +15,9 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 - Confirmation boundary for sensitive system actions
 - Durable command audit trail at `GET /audit`
 - Secret redaction for common password, token, API-key, and secret labels before audit persistence
-- Automated API, safety, memory, persistence, routing, and audit tests
+- Durable request idempotency for `POST /command` using optional caller-supplied `request_id`
+- Request-ID collision protection: the same ID cannot be reused for a different command or confirmation state
+- Automated API, safety, memory, persistence, routing, audit, and idempotency tests
 - Docker image + Docker Compose
 - GitHub Actions CI configuration
 
@@ -41,12 +43,14 @@ Try:
 ```bash
 curl -X POST http://localhost:8000/command \
   -H 'Content-Type: application/json' \
-  -d '{"command":"remember my favorite editor is IntelliJ"}'
+  -d '{"command":"remember my favorite editor is IntelliJ","request_id":"req-memory-0001"}'
 
 curl -X POST http://localhost:8000/command \
   -H 'Content-Type: application/json' \
   -d '{"command":"what do you remember"}'
 ```
+
+If a client retries the first request with the same `request_id`, Vayu returns the cached response without executing the command or writing a second audit event. Reusing that ID with a different command or a different `confirmed` value returns HTTP `409 Conflict`.
 
 ## Runtime data
 
@@ -75,4 +79,4 @@ Next milestones:
 9. Observability/metrics and structured tracing
 10. Mobile/web UI
 
-Vayu must never execute arbitrary shell commands directly. Every action capability should be an explicit skill with scoped permissions, confirmation rules, and an auditable outcome.
+Vayu must never execute arbitrary shell commands directly. Every action capability should be an explicit skill with scoped permissions, confirmation rules, idempotency where side effects are possible, and an auditable outcome.
