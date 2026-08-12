@@ -7,6 +7,10 @@
 - Added exact-retry replay without duplicate execution or duplicate audit entries.
 - Added HTTP 409 protection when a request ID is reused for a different command or confirmation state.
 - Added API regression tests and documented client retry behavior.
+- Replaced boolean-only sensitive-action confirmation with short-lived, one-time confirmation tokens.
+- Bound confirmation tokens to the exact command, stored only token hashes, and prevented replay.
+- Kept legacy `confirmed` input for compatibility while removing its authority to approve execution.
+- Added persistence, replay, cross-command, API-flow, and idempotency regression tests for confirmations.
 
 ## v2026.08.12
 
