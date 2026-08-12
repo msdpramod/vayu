@@ -28,7 +28,9 @@ def test_blocked_command():
 def test_confirmation_required():
     response = client.post("/command", json={"command": "shutdown"})
     assert response.status_code == 200
-    assert response.json()["status"] == "confirm_required"
+    body = response.json()
+    assert body["status"] == "confirmation_required"
+    assert body["confirmation_token"]
 
 
 def test_permission_classifier():
