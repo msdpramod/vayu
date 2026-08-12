@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.08.12
+
+- Started the next daily Vayu development version.
+- Durable SQLite memory and command orchestration are the current implementation focus.
+
 ## v2026.08.11
 
 - Established FastAPI assistant core and health endpoints.
