@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.audit import AuditStore, audit, redact_command
+from app.confirmations import ConfirmationStore, confirmations
 from app.idempotency import idempotency
 from app.main import app
 from app.memory import ConversationMemory, memory
@@ -14,6 +15,7 @@ def setup_function():
     memory.clear()
     audit.clear()
     idempotency.clear()
+    confirmations.clear()
 
 
 def test_health():
@@ -33,9 +35,50 @@ def test_destructive_command_is_blocked():
     assert response.json()["status"] == "blocked"
 
 
-def test_sensitive_command_requires_confirmation():
+def test_sensitive_command_returns_scoped_confirmation_token():
     response = client.post("/command", json={"command": "shutdown"})
+    body = response.json()
+    assert body["status"] == "confirmation_required"
+    assert body["confirmation_token"]
+
+
+def test_legacy_confirmed_boolean_cannot_bypass_confirmation():
+    response = client.post("/command", json={"command": "shutdown", "confirmed": True})
     assert response.json()["status"] == "confirmation_required"
+
+
+def test_valid_confirmation_token_advances_exact_command():
+    challenge = client.post("/command", json={"command": "shutdown"}).json()
+    response = client.post(
+        "/command",
+        json={"command": "shutdown", "confirmation_token": challenge["confirmation_token"]},
+    )
+    assert response.json()["status"] == "unsupported"
+    assert "no executor skill" in response.json()["reply"]
+
+
+def test_confirmation_token_is_one_time():
+    token = client.post("/command", json={"command": "shutdown"}).json()["confirmation_token"]
+    first = client.post("/command", json={"command": "shutdown", "confirmation_token": token})
+    second = client.post("/command", json={"command": "shutdown", "confirmation_token": token})
+    assert first.json()["status"] == "unsupported"
+    assert second.json()["status"] == "confirmation_required"
+    assert second.json()["confirmation_token"] != token
+
+
+def test_confirmation_token_is_bound_to_exact_command():
+    token = client.post("/command", json={"command": "shutdown"}).json()["confirmation_token"]
+    response = client.post("/command", json={"command": "reboot", "confirmation_token": token})
+    assert response.json()["status"] == "confirmation_required"
+
+
+def test_confirmation_store_survives_new_instance(tmp_path):
+    db = tmp_path / "confirmation.db"
+    first = ConfirmationStore(str(db))
+    token = first.issue("shutdown")
+    second = ConfirmationStore(str(db))
+    assert second.consume(token, "shutdown") is True
+    assert second.consume(token, "shutdown") is False
 
 
 def test_remember_and_recall_through_api():
@@ -88,15 +131,16 @@ def test_request_id_collision_returns_conflict():
     assert "different command" in second.json()["detail"]
 
 
-def test_confirmation_state_is_part_of_idempotency_fingerprint():
+def test_confirmation_token_is_part_of_idempotency_fingerprint():
     request_id = "req-confirm-001"
-    first = client.post("/command", json={"command": "shutdown", "request_id": request_id})
+    challenge = client.post("/command", json={"command": "shutdown", "request_id": request_id})
+    token = challenge.json()["confirmation_token"]
     second = client.post(
         "/command",
-        json={"command": "shutdown", "confirmed": True, "request_id": request_id},
+        json={"command": "shutdown", "confirmation_token": token, "request_id": request_id},
     )
-    assert first.status_code == 200
-    assert first.json()["status"] == "confirmation_required"
+    assert challenge.status_code == 200
+    assert challenge.json()["status"] == "confirmation_required"
     assert second.status_code == 409
 
 
