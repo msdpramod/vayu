@@ -1,5 +1,10 @@
 # Changelog
 
+## v2026.08.13
+
+- Started the next daily Vayu development version.
+- Completing API-level command idempotency is the current implementation focus.
+
 ## v2026.08.12
 
 - Added durable SQLite-backed conversation memory and wired it into `/command`.
