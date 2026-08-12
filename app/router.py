@@ -23,6 +23,9 @@ def route(command: str) -> Intent:
         "what time is it": "time",
         "list skills": "skills",
         "what can you do": "skills",
+        "list tasks": "tasks",
+        "show tasks": "tasks",
+        "my tasks": "tasks",
     }
     if normalized in aliases:
         return Intent(aliases[normalized])
@@ -31,5 +34,9 @@ def route(command: str) -> Intent:
         return Intent("remember", text[9:].strip())
     if normalized in {"memory", "what do you remember"}:
         return Intent("memory")
+    if normalized.startswith("add task "):
+        return Intent("task_add", text[9:].strip())
+    if normalized.startswith("complete task "):
+        return Intent("task_complete", text[14:].strip())
 
     return Intent("reason", text)
