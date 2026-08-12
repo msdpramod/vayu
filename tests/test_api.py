@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from app.audit import AuditStore, audit, redact_command
+from app.idempotency import idempotency
 from app.main import app
 from app.memory import ConversationMemory, memory
 from app.permissions import Risk, classify
@@ -12,6 +13,7 @@ client = TestClient(app)
 def setup_function():
     memory.clear()
     audit.clear()
+    idempotency.clear()
 
 
 def test_health():
@@ -64,6 +66,38 @@ def test_unknown_command_routes_to_safe_brain_fallback():
     assert body["status"] == "unsupported"
     assert body["intent"] == "reason"
     assert body["executed"] is False
+
+
+def test_duplicate_request_id_replays_without_duplicate_execution():
+    payload = {"command": "remember retry-safe fact", "request_id": "req-duplicate-001"}
+    first = client.post("/command", json=payload)
+    second = client.post("/command", json=payload)
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json() == first.json()
+    assert len(memory.recent(10)) == 1
+    assert len(client.get("/audit").json()["events"]) == 1
+
+
+def test_request_id_collision_returns_conflict():
+    request_id = "req-collision-001"
+    first = client.post("/command", json={"command": "hello", "request_id": request_id})
+    second = client.post("/command", json={"command": "status", "request_id": request_id})
+    assert first.status_code == 200
+    assert second.status_code == 409
+    assert "different command" in second.json()["detail"]
+
+
+def test_confirmation_state_is_part_of_idempotency_fingerprint():
+    request_id = "req-confirm-001"
+    first = client.post("/command", json={"command": "shutdown", "request_id": request_id})
+    second = client.post(
+        "/command",
+        json={"command": "shutdown", "confirmed": True, "request_id": request_id},
+    )
+    assert first.status_code == 200
+    assert first.json()["status"] == "confirmation_required"
+    assert second.status_code == 409
 
 
 def test_command_decision_is_audited():
