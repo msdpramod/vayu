@@ -5,10 +5,11 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 ## What works now
 
 - FastAPI backend
-- `GET /`, `GET /health`, `GET /skills`
+- `GET /`, `GET /health`, `GET /skills`, `GET /tasks`
 - `POST /command` orchestration API
-- Safe allow-listed skills: greeting, service status, and UTC time
-- Intent routing for skills, memory, and AI reasoning fallback
+- Safe allow-listed skills: greeting, service status, UTC time, and durable local task management
+- Durable task commands: `add task ...`, `list tasks`, and `complete task <id>`
+- Intent routing for memory and AI reasoning fallback
 - Durable SQLite-backed memory with `remember ...`, `what do you remember`, and `GET /memory`
 - Pluggable AI provider boundary with an offline-safe fallback
 - Explicit blocking for destructive, financial, credential, and security-sensitive commands
@@ -19,7 +20,7 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 - Secret redaction for common password, token, API-key, and secret labels before audit persistence
 - Durable request idempotency for `POST /command` using optional caller-supplied `request_id`
 - Request-ID collision protection: the same ID cannot be reused for a different command or confirmation token
-- Automated API, safety, memory, persistence, routing, audit, idempotency, and confirmation tests
+- Automated API, safety, memory, persistence, routing, audit, idempotency, confirmation, and task tests
 - Docker image + Docker Compose
 - GitHub Actions CI configuration
 
@@ -39,6 +40,25 @@ Open:
 - http://localhost:8000/health
 - http://localhost:8000/memory
 - http://localhost:8000/audit
+- http://localhost:8000/tasks
+
+Try task management:
+
+```bash
+curl -X POST http://localhost:8000/command \
+  -H 'Content-Type: application/json' \
+  -d '{"command":"add task review Vayu CI","request_id":"req-task-0001"}'
+
+curl -X POST http://localhost:8000/command \
+  -H 'Content-Type: application/json' \
+  -d '{"command":"list tasks"}'
+
+curl -X POST http://localhost:8000/command \
+  -H 'Content-Type: application/json' \
+  -d '{"command":"complete task 1"}'
+```
+
+Task operations are implemented as explicit local skills. They only mutate Vayu's SQLite state and do not invoke a shell or external OS command.
 
 Try durable memory:
 
