@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
 
+from app.audit import AuditStore, audit, redact_command
 from app.main import app
 from app.memory import ConversationMemory, memory
 from app.permissions import Risk, classify
@@ -10,6 +11,7 @@ client = TestClient(app)
 
 def setup_function():
     memory.clear()
+    audit.clear()
 
 
 def test_health():
@@ -62,6 +64,39 @@ def test_unknown_command_routes_to_safe_brain_fallback():
     assert body["status"] == "unsupported"
     assert body["intent"] == "reason"
     assert body["executed"] is False
+
+
+def test_command_decision_is_audited():
+    client.post("/command", json={"command": "hello"})
+    events = client.get("/audit").json()["events"]
+    assert len(events) == 1
+    assert events[0]["command"] == "hello"
+    assert events[0]["risk"] == "safe"
+    assert events[0]["intent"] == "hello"
+    assert events[0]["status"] == "ok"
+    assert events[0]["executed"] is True
+
+
+def test_blocked_command_is_audited():
+    client.post("/command", json={"command": "delete all files"})
+    event = client.get("/audit").json()["events"][0]
+    assert event["risk"] == "blocked"
+    assert event["status"] == "blocked"
+    assert event["executed"] is False
+
+
+def test_audit_redacts_secrets(tmp_path):
+    db = tmp_path / "audit.db"
+    store = AuditStore(str(db))
+    store.record("call service token=abc123", "safe", "reason", "unsupported", False)
+    event = store.recent(1)[0]
+    assert "abc123" not in event["command"]
+    assert "[REDACTED]" in event["command"]
+
+
+def test_redaction_covers_common_secret_labels():
+    assert "hunter2" not in redact_command("password=hunter2")
+    assert "secret-value" not in redact_command("api_key: secret-value")
 
 
 def test_router_memory_intent():
