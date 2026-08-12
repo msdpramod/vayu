@@ -5,13 +5,14 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 ## What works now
 
 - FastAPI backend
-- `GET /`, `GET /health`, `GET /skills`, `GET /tasks`, `GET /reminders`, `GET /reminders/due`
+- `GET /`, `GET /health`, `GET /skills`, `GET /tasks`, `GET /reminders`, `GET /reminders/due`, `GET /notifications`
 - `POST /command` orchestration API
+- `POST /reminders/dispatch` safely stages due reminders into a durable local notification outbox
 - Safe allow-listed skills: greeting, service status, UTC time, durable local task management, and durable local reminders
 - Durable task commands: `add task ...`, `list tasks`, and `complete task <id>`
 - Durable reminder commands: `remind me at <ISO-8601 time> to <message>`, `list reminders`, and `dismiss reminder <id>`
 - Reminder timestamps must include `Z` or an explicit timezone offset and are normalized to UTC
-- Due reminders are exposed through `GET /reminders/due` for a future explicit notifier worker; Vayu does not silently execute background OS actions
+- Due reminders can be staged exactly once into a SQLite notification outbox; no OS, email, push, or shell side effect is invoked automatically
 - Intent routing for memory and AI reasoning fallback
 - Durable SQLite-backed memory with `remember ...`, `what do you remember`, and `GET /memory`
 - Pluggable AI provider boundary with an offline-safe fallback
@@ -23,7 +24,7 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 - Secret redaction for common password, token, API-key, and secret labels before audit persistence
 - Durable request idempotency for `POST /command` using optional caller-supplied `request_id`
 - Request-ID collision protection: the same ID cannot be reused for a different command or confirmation token
-- Automated API, safety, memory, persistence, routing, audit, idempotency, confirmation, task, and reminder tests
+- Automated API, safety, memory, persistence, routing, audit, idempotency, confirmation, task, reminder, and notification-outbox tests
 - Docker image + Docker Compose
 - GitHub Actions CI configuration
 
@@ -46,6 +47,7 @@ Open:
 - http://localhost:8000/tasks
 - http://localhost:8000/reminders
 - http://localhost:8000/reminders/due
+- http://localhost:8000/notifications
 
 Try task management:
 
@@ -77,9 +79,11 @@ curl -X POST http://localhost:8000/command \
   -d '{"command":"list reminders"}'
 
 curl http://localhost:8000/reminders/due
+curl -X POST http://localhost:8000/reminders/dispatch
+curl http://localhost:8000/notifications
 ```
 
-Vayu normalizes reminder times to UTC and rejects timezone-less timestamps to avoid ambiguous scheduling. The due endpoint is read-only; notification delivery will be implemented as a separate allow-listed capability so reminder storage never becomes arbitrary command execution.
+Vayu normalizes reminder times to UTC and rejects timezone-less timestamps to avoid ambiguous scheduling. Dispatch only writes pending records into Vayu's local outbox and is idempotent per reminder. A future delivery adapter can consume that outbox under its own scoped permissions and confirmation policy.
 
 Try durable memory:
 
@@ -129,8 +133,8 @@ docker compose up --build
 
 Next milestones:
 
-1. Real external LLM provider integration with timeouts and error isolation
-2. Explicit reminder notification worker with scoped delivery adapters
+1. Scoped notification delivery adapters with retries, acknowledgements, and dead-letter handling
+2. Real external LLM provider integration with timeouts and error isolation
 3. Voice input/output (STT/TTS)
 4. Richer explicit skill registry and scoped permissions
 5. Desktop agent with narrowly scoped executors
