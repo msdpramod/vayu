@@ -1,18 +1,23 @@
 # Vayu
 
-Vayu is a Jarvis-style personal assistant backend MVP focused on safe, allow-listed command execution.
+Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit command execution.
 
 ## What works now
 
 - FastAPI backend
-- `GET /` service status
-- `GET /health` health check
-- `POST /command` command API
-- Safe allow-listed commands: `hello`, `hi`, `status`, `health`, `time`, `what time is it`
+- `GET /`, `GET /health`, `GET /skills`
+- `POST /command` orchestration API
+- Safe allow-listed skills: greeting, service status, and UTC time
+- Intent routing for skills, memory, and AI reasoning fallback
+- Durable SQLite-backed memory with `remember ...`, `what do you remember`, and `GET /memory`
+- Pluggable AI provider boundary with an offline-safe fallback
 - Explicit blocking for destructive, financial, credential, and security-sensitive commands
-- Automated tests
+- Confirmation boundary for sensitive system actions
+- Durable command audit trail at `GET /audit`
+- Secret redaction for common password, token, API-key, and secret labels before audit persistence
+- Automated API, safety, memory, persistence, routing, and audit tests
 - Docker image + Docker Compose
-- GitHub Actions CI
+- GitHub Actions CI configuration
 
 ## Run locally
 
@@ -28,14 +33,26 @@ Open:
 - http://localhost:8000/
 - http://localhost:8000/docs
 - http://localhost:8000/health
+- http://localhost:8000/memory
+- http://localhost:8000/audit
 
 Try:
 
 ```bash
 curl -X POST http://localhost:8000/command \
   -H 'Content-Type: application/json' \
-  -d '{"command":"hello"}'
+  -d '{"command":"remember my favorite editor is IntelliJ"}'
+
+curl -X POST http://localhost:8000/command \
+  -H 'Content-Type: application/json' \
+  -d '{"command":"what do you remember"}'
 ```
+
+## Runtime data
+
+By default Vayu stores durable state in `data/vayu.db`. Override it with `VAYU_DB_PATH`.
+
+Runtime databases and `.env` files are ignored by Git. Do not commit credentials or provider keys.
 
 ## Docker
 
@@ -47,15 +64,15 @@ docker compose up --build
 
 Next milestones:
 
-1. LLM reasoning/provider abstraction
+1. Real external LLM provider integration with timeouts and error isolation
 2. Voice input/output (STT/TTS)
-3. Skill registry
-4. Desktop agent
+3. Richer explicit skill registry and scoped permissions
+4. Desktop agent with narrowly scoped executors
 5. Browser control
 6. Calendar/email integrations
 7. Smart-home integrations
-8. Permission and confirmation engine
-9. Long-term memory
+8. Long-term semantic memory and retrieval
+9. Observability/metrics and structured tracing
 10. Mobile/web UI
 
-The assistant should never execute arbitrary shell commands directly. Every capability should be an explicit skill with scoped permissions and confirmation rules.
+Vayu must never execute arbitrary shell commands directly. Every action capability should be an explicit skill with scoped permissions, confirmation rules, and an auditable outcome.
