@@ -10,6 +10,7 @@ from app.audit import audit
 from app.confirmations import confirmations
 from app.idempotency import idempotency
 from app.memory import memory
+from app.notifications import notifications
 from app.permissions import Risk, classify
 from app.providers import get_provider
 from app.reminders import reminders
@@ -17,7 +18,7 @@ from app.router import route
 from app.skills import SKILLS, resolve
 from app.tasks import tasks
 
-app = FastAPI(title="Vayu", version="0.8.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.9.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
@@ -73,6 +74,16 @@ def get_reminders(include_dismissed: bool = False, limit: int = 50):
 @app.get("/reminders/due")
 def get_due_reminders(limit: int = 50):
     return {"reminders": reminders.due(limit=limit)}
+
+
+@app.post("/reminders/dispatch")
+def dispatch_due_reminders(limit: int = 50):
+    return {"notifications": notifications.enqueue_due(reminders, limit=limit)}
+
+
+@app.get("/notifications")
+def get_notifications(limit: int = 50):
+    return {"notifications": notifications.list(limit=limit)}
 
 
 def _respond(
