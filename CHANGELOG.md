@@ -14,6 +14,9 @@
 - Repaired GitHub Actions test execution and updated a stale confirmation regression expectation; CI returned green with 36 passing tests before feature work resumed.
 - Added durable SQLite-backed local tasks with explicit `task_add`, `tasks`, and `task_complete` skills.
 - Added `GET /tasks`, command-level task workflows, persistence tests, and explicit-skill registry coverage.
+- Added durable timezone-aware reminders with explicit `reminder_add`, `reminders`, and `reminder_dismiss` skills.
+- Added `GET /reminders` and read-only `GET /reminders/due` APIs as the safe foundation for future notifier adapters.
+- Normalized reminder timestamps to UTC, rejected ambiguous timezone-less scheduling, indexed due-reminder queries, and added persistence/API/due-state regression tests.
 
 ## v2026.08.12
 
