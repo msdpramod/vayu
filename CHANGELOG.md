@@ -3,7 +3,10 @@
 ## v2026.08.13
 
 - Started the next daily Vayu development version.
-- Completing API-level command idempotency is the current implementation focus.
+- Wired durable request idempotency into `POST /command`.
+- Added exact-retry replay without duplicate execution or duplicate audit entries.
+- Added HTTP 409 protection when a request ID is reused for a different command or confirmation state.
+- Added API regression tests and documented client retry behavior.
 
 ## v2026.08.12
 
