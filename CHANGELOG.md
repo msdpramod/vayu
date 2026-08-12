@@ -2,8 +2,13 @@
 
 ## v2026.08.12
 
-- Started the next daily Vayu development version.
-- Durable SQLite memory and command orchestration are the current implementation focus.
+- Added durable SQLite-backed conversation memory and wired it into `/command`.
+- Connected intent routing and the safe AI-provider fallback to the live orchestration path.
+- Added `/memory` plus persistence and routing regression tests.
+- Added a durable command audit trail covering blocked, confirmation-required, successful, memory, and AI-fallback decisions.
+- Added redaction for common password, token, API-key, and secret labels before audit persistence.
+- Added `/audit` plus audit persistence, safety, and redaction tests.
+- Updated runtime documentation and ignored local database files.
 
 ## v2026.08.11
 
