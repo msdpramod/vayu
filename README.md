@@ -5,8 +5,12 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 ## What works now
 
 - FastAPI backend
-- `GET /`, `GET /health`, `GET /skills`, `GET /tasks`, `GET /reminders`, `GET /reminders/due`, `GET /notifications`
+- `GET /`, `GET /health`, `GET /skills`, `GET /tasks`, `GET /reminders`, `GET /reminders/due`, `GET /notifications`, `GET /actions`
 - `POST /command` orchestration API
+- Human-in-the-loop proposed-action lifecycle with durable `pending_approval`, `approved`, `rejected`, and `executed` states
+- Hard action execution gate: no tool adapter can run until the exact proposed action is explicitly approved
+- Allow-listed action executor registry that fails closed when an adapter is not installed
+- Durable per-action lifecycle events for proposal, approval, rejection, execution failure, and execution
 - `POST /reminders/dispatch` safely stages due reminders into a durable local notification outbox
 - Safe allow-listed skills: greeting, service status, UTC time, durable local task management, and durable local reminders
 - Durable task commands: `add task ...`, `list tasks`, and `complete task <id>`
@@ -24,7 +28,7 @@ Vayu is a Jarvis-style personal assistant backend MVP focused on safe, explicit 
 - Secret redaction for common password, token, API-key, and secret labels before audit persistence
 - Durable request idempotency for `POST /command` using optional caller-supplied `request_id`
 - Request-ID collision protection: the same ID cannot be reused for a different command or confirmation token
-- Automated API, safety, memory, persistence, routing, audit, idempotency, confirmation, task, reminder, and notification-outbox tests
+- Automated API, safety, memory, persistence, routing, audit, idempotency, confirmation, task, reminder, notification-outbox, and proposed-action tests
 - Docker image + Docker Compose
 - GitHub Actions CI configuration
 
@@ -48,6 +52,7 @@ Open:
 - http://localhost:8000/reminders
 - http://localhost:8000/reminders/due
 - http://localhost:8000/notifications
+- http://localhost:8000/actions
 
 Try task management:
 
@@ -84,6 +89,23 @@ curl http://localhost:8000/notifications
 ```
 
 Vayu normalizes reminder times to UTC and rejects timezone-less timestamps to avoid ambiguous scheduling. Dispatch only writes pending records into Vayu's local outbox and is idempotent per reminder. A future delivery adapter can consume that outbox under its own scoped permissions and confirmation policy.
+
+Try the proposed-action approval gate:
+
+```bash
+curl -X POST http://localhost:8000/actions \
+  -H 'Content-Type: application/json' \
+  -d '{"tool":"email.send","description":"Send reviewed status update","payload":{"to":"owner@example.com","subject":"Vayu status"}}'
+
+curl http://localhost:8000/actions
+curl -X POST http://localhost:8000/actions/1/approve
+curl -X POST http://localhost:8000/actions/1/execute
+curl http://localhost:8000/actions/1/events
+```
+
+Every proposed action begins in `pending_approval`, including actions labeled `safe`. Approval is a separate durable transition. Execution then passes through an allow-listed adapter registry. If no adapter is installed, Vayu returns a closed failure and leaves the action approved but unexecuted. Rejected actions are terminal. This separates AI planning from authority to act and prevents a future LLM from bypassing human approval.
+
+No email, calendar, browser, shell, or other external executor is installed by this increment. Future adapters must be explicitly registered and will inherit the same approval gate.
 
 Try durable memory:
 
@@ -133,16 +155,17 @@ docker compose up --build
 
 Next milestones:
 
-1. Scoped notification delivery adapters with retries, acknowledgements, and dead-letter handling
-2. Real external LLM provider integration with timeouts and error isolation
-3. Voice input/output (STT/TTS)
-4. Richer explicit skill registry and scoped permissions
-5. Desktop agent with narrowly scoped executors
-6. Browser control
-7. Calendar/email integrations
-8. Smart-home integrations
-9. Long-term semantic memory and retrieval
-10. Observability/metrics and structured tracing
-11. Mobile/web UI
+1. Connect structured planner output to proposed actions without granting the planner execution authority
+2. Scoped notification delivery adapters with retries, acknowledgements, and dead-letter handling
+3. Real external LLM provider integration with timeouts and error isolation
+4. Voice input/output (STT/TTS)
+5. Richer explicit skill registry and scoped permissions
+6. Desktop agent with narrowly scoped executors
+7. Browser control behind the action approval gate
+8. Calendar/email integrations behind the action approval gate
+9. Smart-home integrations
+10. Long-term semantic memory and retrieval
+11. Observability/metrics and structured tracing
+12. Mobile/web UI
 
-Vayu must never execute arbitrary shell commands directly. Every action capability should be an explicit skill with scoped permissions, confirmation rules, idempotency where side effects are possible, and an auditable outcome.
+Vayu must never execute arbitrary shell commands directly. Every action capability should be an explicit skill or allow-listed tool adapter with scoped permissions, human approval for external side effects, idempotency where side effects are possible, and an auditable outcome.

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import hashlib
-from typing import Literal
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from app.actions import ActionExecutorRegistry, ProposedActionStore, actions, executors
 from app.audit import audit
 from app.confirmations import confirmations
 from app.idempotency import idempotency
@@ -18,7 +19,7 @@ from app.router import route
 from app.skills import SKILLS, resolve
 from app.tasks import tasks
 
-app = FastAPI(title="Vayu", version="0.9.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.10.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
@@ -34,6 +35,13 @@ class CommandResponse(BaseModel):
     reply: str
     executed: bool = False
     confirmation_token: str | None = None
+
+
+class ActionProposalRequest(BaseModel):
+    tool: str = Field(min_length=3, max_length=64, pattern=r"^[a-z][a-z0-9_.-]+$")
+    description: str = Field(min_length=3, max_length=500)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    risk: Literal["safe", "confirm"] = "confirm"
 
 
 @app.get("/")
@@ -84,6 +92,67 @@ def dispatch_due_reminders(limit: int = 50):
 @app.get("/notifications")
 def get_notifications(limit: int = 50):
     return {"notifications": notifications.list(limit=limit)}
+
+
+@app.post("/actions", status_code=201)
+def propose_action(req: ActionProposalRequest):
+    try:
+        return actions.propose(req.tool, req.description, req.payload, req.risk)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/actions")
+def get_actions(status: str | None = None, limit: int = 50):
+    return {"actions": actions.list(status=status, limit=limit)}
+
+
+@app.get("/actions/{action_id}")
+def get_action(action_id: int):
+    try:
+        return actions.get(action_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/actions/{action_id}/events")
+def get_action_events(action_id: int, limit: int = 100):
+    try:
+        return {"events": actions.events(action_id, limit=limit)}
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/actions/{action_id}/approve")
+def approve_action(action_id: int):
+    try:
+        return actions.approve(action_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/actions/{action_id}/reject")
+def reject_action(action_id: int):
+    try:
+        return actions.reject(action_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/actions/{action_id}/execute")
+def execute_action(action_id: int):
+    try:
+        return executors.execute(action_id)
+    except KeyError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except PermissionError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except LookupError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
 
 def _respond(

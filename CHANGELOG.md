@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.08.15
+
+- Started the next daily Vayu development version.
+- Reused KUPPA AI's human-in-the-loop proposed-action pattern without creating a runtime dependency between repositories.
+- Added durable proposed actions with explicit `pending_approval`, `approved`, `rejected`, and `executed` lifecycle states.
+- Added a hard execution gate and allow-listed executor registry; unapproved actions and unknown adapters fail closed.
+- Added durable action lifecycle events for proposal, approval, rejection, execution failures, and successful execution.
+- Added action proposal/list/detail/event plus approve, reject, and execute APIs.
+- Added unit and API regression tests covering pre-approval blocking, terminal rejection, missing adapters, durable events, and successful allow-listed execution.
+- Documented the planner-versus-executor boundary so future LLM, email, calendar, browser, desktop, and smart-home integrations cannot bypass human approval.
+
 ## v2026.08.13
 
 - Started the next daily Vayu development version.
