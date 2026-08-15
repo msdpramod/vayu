@@ -13,13 +13,14 @@ from app.idempotency import idempotency
 from app.memory import memory
 from app.notifications import notifications
 from app.permissions import Risk, classify
+from app.planner import planner
 from app.providers import get_provider
 from app.reminders import reminders
 from app.router import route
 from app.skills import SKILLS, resolve
 from app.tasks import tasks
 
-app = FastAPI(title="Vayu", version="0.10.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.11.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
@@ -42,6 +43,10 @@ class ActionProposalRequest(BaseModel):
     description: str = Field(min_length=3, max_length=500)
     payload: dict[str, Any] = Field(default_factory=dict)
     risk: Literal["safe", "confirm"] = "confirm"
+
+
+class PlannerRequest(BaseModel):
+    prompt: str = Field(min_length=1, max_length=1000)
 
 
 @app.get("/")
@@ -92,6 +97,14 @@ def dispatch_due_reminders(limit: int = 50):
 @app.get("/notifications")
 def get_notifications(limit: int = 50):
     return {"notifications": notifications.list(limit=limit)}
+
+
+@app.post("/plan")
+def create_plan(req: PlannerRequest):
+    try:
+        return planner.plan(req.prompt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/actions", status_code=201)
