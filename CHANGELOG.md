@@ -1,5 +1,14 @@
 # Changelog
 
+## v2026.08.16
+
+- Started the next daily Vayu development version.
+- Added a structured planner boundary that can propose allow-listed actions but has no execution authority.
+- Added planner decision validation so unknown tools, malformed payloads, and unsafe multi-action output fail closed.
+- Kept every planner-created action in `pending_approval`; the planner cannot approve or execute its own proposal.
+- Added deterministic local fallback planning plus provider abstractions for future LLM-backed planners without coupling Vayu to KUPPA AI at runtime.
+- Added planner unit/API regression coverage and updated architecture documentation.
+
 ## v2026.08.15
 
 - Started the next daily Vayu development version.
