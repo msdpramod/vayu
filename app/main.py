@@ -20,7 +20,7 @@ from app.router import route
 from app.skills import SKILLS, resolve
 from app.tasks import tasks
 
-app = FastAPI(title="Vayu", version="0.11.0", description="Safe Jarvis-style assistant core")
+app = FastAPI(title="Vayu", version="0.12.0", description="Safe Jarvis-style assistant core")
 
 
 class CommandRequest(BaseModel):
@@ -105,6 +105,8 @@ def create_plan(req: PlannerRequest):
         return planner.plan(req.prompt)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
 @app.post("/actions", status_code=201)
