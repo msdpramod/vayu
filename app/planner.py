@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import json
+import os
 from typing import Any
+
+import httpx
 
 from app.actions import PENDING, ProposedActionStore, actions
 
@@ -38,14 +42,7 @@ class PlannerProvider(ABC):
 
 
 class LocalRulePlanner(PlannerProvider):
-    """Deterministic offline fallback for exercising the planner boundary safely.
-
-    It recognizes only the explicit form:
-        propose <allow-listed-tool>: <description>
-
-    The rule intentionally does not infer recipients, credentials, shell commands,
-    or side effects. It can only create a pending proposal for later human review.
-    """
+    """Deterministic offline fallback for exercising the planner boundary safely."""
 
     def plan(self, prompt: str) -> PlannerDecision:
         text = prompt.strip()
@@ -68,6 +65,80 @@ class LocalRulePlanner(PlannerProvider):
         )
 
 
+class OllamaPlanner(PlannerProvider):
+    """Local-LLM planner using strict JSON output; it can only propose actions."""
+
+    def __init__(self, base_url: str, model: str, timeout_seconds: float = 8.0):
+        self.base_url = base_url.rstrip("/")
+        self.model = model
+        self.timeout_seconds = timeout_seconds
+
+    def plan(self, prompt: str) -> PlannerDecision:
+        system = (
+            "You are Vayu's planning component. Never claim an action was executed. "
+            "Return one JSON object only with keys reply and action. action must be null "
+            "or an object with tool, description, payload, risk. Allowed tools: "
+            "calendar.create, email.send, notification.send. risk must always be confirm. "
+            "Do not invent credentials, secrets, recipients, dates, or identifiers."
+        )
+        try:
+            response = httpx.post(
+                f"{self.base_url}/api/generate",
+                json={
+                    "model": self.model,
+                    "prompt": f"{system}\n\nUser request: {prompt}",
+                    "format": "json",
+                    "stream": False,
+                },
+                timeout=self.timeout_seconds,
+            )
+            response.raise_for_status()
+            envelope = response.json()
+            raw = envelope.get("response")
+            if not isinstance(raw, str):
+                raise ValueError("Ollama response is missing the planner JSON string.")
+            data = json.loads(raw)
+        except (httpx.HTTPError, json.JSONDecodeError, ValueError, TypeError) as exc:
+            raise RuntimeError(f"Ollama planner unavailable or invalid: {exc}") from exc
+
+        if not isinstance(data, dict):
+            raise ValueError("Planner output must be a JSON object.")
+        reply = data.get("reply")
+        if not isinstance(reply, str) or not reply.strip():
+            raise ValueError("Planner reply is required.")
+        raw_action = data.get("action")
+        if raw_action is None:
+            return PlannerDecision(reply=reply.strip(), provider="ollama")
+        if not isinstance(raw_action, dict):
+            raise ValueError("Planner action must be an object or null.")
+        allowed_keys = {"tool", "description", "payload", "risk"}
+        if set(raw_action) - allowed_keys:
+            raise ValueError("Planner action contains unsupported fields.")
+        return PlannerDecision(
+            reply=reply.strip(),
+            action=PlannedAction(
+                tool=str(raw_action.get("tool", "")),
+                description=str(raw_action.get("description", "")),
+                payload=raw_action.get("payload", {}),
+                risk=str(raw_action.get("risk", "confirm")),
+            ),
+            provider="ollama",
+        )
+
+
+def get_planner_provider() -> PlannerProvider:
+    provider = os.getenv("VAYU_PLANNER_PROVIDER", "local").strip().lower()
+    if provider == "local":
+        return LocalRulePlanner()
+    if provider == "ollama":
+        return OllamaPlanner(
+            base_url=os.getenv("VAYU_OLLAMA_URL", "http://127.0.0.1:11434"),
+            model=os.getenv("VAYU_OLLAMA_MODEL", "llama3.2"),
+            timeout_seconds=float(os.getenv("VAYU_OLLAMA_TIMEOUT_SECONDS", "8")),
+        )
+    raise ValueError(f"Unsupported VAYU_PLANNER_PROVIDER: {provider}")
+
+
 class PlannerService:
     """Validates planner output and stages, but never approves or executes, actions."""
 
@@ -78,7 +149,7 @@ class PlannerService:
         proposable_tools: frozenset[str] = PROPOSABLE_TOOLS,
     ):
         self.store = store
-        self.provider = provider or LocalRulePlanner()
+        self.provider = provider or get_planner_provider()
         self.proposable_tools = proposable_tools
 
     def _validate_action(self, action: PlannedAction) -> None:
