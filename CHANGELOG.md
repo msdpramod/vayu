@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.08.17
+
+- Started the next daily Vayu development version.
+- Added an isolated Ollama planner provider using strict JSON output, explicit timeouts, and no executor/approval capability.
+- Added environment-based planner selection with `VAYU_PLANNER_PROVIDER`, `VAYU_OLLAMA_URL`, `VAYU_OLLAMA_MODEL`, and `VAYU_OLLAMA_TIMEOUT_SECONDS`.
+- Kept planner-created actions behind the same allow-list and mandatory `confirm` risk boundary.
+- Added fail-closed validation for unsupported planner fields, malformed responses, transport failures, and unsafe tool proposals.
+- Added planner regression tests for valid Ollama proposals, rejected extra execution fields, and offline transport failures.
+- Made `/plan` return HTTP 503 when the configured planner provider is unavailable instead of surfacing an unhandled server error.
+- Reused KUPPA AI's local-intelligence pattern while keeping Vayu independently runnable and free of cross-repository runtime coupling.
+
 ## v2026.08.16
 
 - Started the next daily Vayu development version.
