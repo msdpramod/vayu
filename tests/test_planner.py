@@ -1,9 +1,13 @@
+import json
+
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
 from app.actions import ActionExecutorRegistry, PENDING, ProposedActionStore, actions
 from app.main import app
 from app.planner import (
+    OllamaPlanner,
     PlannedAction,
     PlannerDecision,
     PlannerProvider,
@@ -91,6 +95,76 @@ def test_local_planner_requires_explicit_allowlisted_proposal_syntax(tmp_path):
     proposed = service.plan("propose email.send: Send the reviewed launch update")
     assert proposed["proposed_action"]["status"] == PENDING
     assert proposed["proposed_action"]["risk"] == "confirm"
+
+
+def test_ollama_planner_parses_strict_json_without_execution(monkeypatch, tmp_path):
+    payload = {
+        "reply": "I prepared a notification for review.",
+        "action": {
+            "tool": "notification.send",
+            "description": "Notify the owner after review",
+            "payload": {"message": "Build completed"},
+            "risk": "confirm",
+        },
+    }
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": json.dumps(payload)}
+
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: FakeResponse())
+    store = ProposedActionStore(str(tmp_path / "ollama.db"))
+    service = PlannerService(store, OllamaPlanner("http://127.0.0.1:11434", "llama3.2"))
+
+    result = service.plan("notify me when the build is done")
+
+    assert result["provider"] == "ollama"
+    assert result["proposed_action"]["status"] == PENDING
+    assert result["proposed_action"]["tool"] == "notification.send"
+
+
+def test_ollama_planner_rejects_extra_action_fields(monkeypatch, tmp_path):
+    payload = {
+        "reply": "unsafe",
+        "action": {
+            "tool": "email.send",
+            "description": "Send email",
+            "payload": {},
+            "risk": "confirm",
+            "execute": True,
+        },
+    }
+
+    class FakeResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {"response": json.dumps(payload)}
+
+    monkeypatch.setattr(httpx, "post", lambda *args, **kwargs: FakeResponse())
+    store = ProposedActionStore(str(tmp_path / "ollama-invalid.db"))
+    service = PlannerService(store, OllamaPlanner("http://127.0.0.1:11434", "llama3.2"))
+
+    with pytest.raises(ValueError, match="unsupported fields"):
+        service.plan("send email")
+    assert store.list() == []
+
+
+def test_ollama_transport_failure_creates_no_action(monkeypatch, tmp_path):
+    def fail(*args, **kwargs):
+        raise httpx.ConnectError("offline")
+
+    monkeypatch.setattr(httpx, "post", fail)
+    store = ProposedActionStore(str(tmp_path / "ollama-offline.db"))
+    service = PlannerService(store, OllamaPlanner("http://127.0.0.1:11434", "llama3.2"))
+
+    with pytest.raises(RuntimeError, match="unavailable or invalid"):
+        service.plan("send email")
+    assert store.list() == []
 
 
 def test_plan_api_creates_pending_proposal_only():
