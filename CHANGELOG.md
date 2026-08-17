@@ -1,5 +1,14 @@
 # Changelog
 
+## v2026.08.18
+
+- Started the next daily Vayu development version.
+- Added a dedicated planner payload policy that fails closed on oversized, deeply nested, non-JSON, secret-bearing, and executable-like fields before proposals are persisted.
+- Added hard payload limits: 8 KiB serialized size, four nesting levels, and bounded collection sizes.
+- Blocked planner payload fields such as credentials, tokens, passwords, secrets, shell, script, executable, and subprocess to reduce prompt-injection and tool-smuggling risk.
+- Added regression tests covering safe payloads, secret/execution-field rejection, excessive depth, and oversized payloads.
+- Kept the existing KUPPA AI-inspired separation of intelligence from authority: planner output remains proposal-only and still requires human approval before execution.
+
 ## v2026.08.17
 
 - Started the next daily Vayu development version.
