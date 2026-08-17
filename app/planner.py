@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from app.actions import PENDING, ProposedActionStore, actions
+from app.payload_policy import validate_planner_payload
 
 
 PROPOSABLE_TOOLS = frozenset({
@@ -161,8 +162,7 @@ class PlannerService:
             raise ValueError("Planner action description is required.")
         if len(action.description) > 500:
             raise ValueError("Planner action description is too long.")
-        if not isinstance(action.payload, dict):
-            raise ValueError("Planner action payload must be an object.")
+        validate_planner_payload(action.payload)
 
     def stage_decision(self, decision: PlannerDecision) -> dict[str, Any]:
         response: dict[str, Any] = {
