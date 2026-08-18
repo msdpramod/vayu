@@ -9,6 +9,8 @@ import sqlite3
 from threading import Lock
 from typing import Any
 
+from app.payload_policy import validate_action_payload
+
 
 PENDING = "pending_approval"
 APPROVED = "approved"
@@ -101,6 +103,9 @@ class ProposedActionStore:
         if not tool or not description:
             raise ValueError("Tool and description are required.")
 
+        normalized_payload = payload or {}
+        validate_action_payload(normalized_payload)
+
         with self._lock, self._connect() as connection:
             cursor = connection.execute(
                 """
@@ -111,7 +116,7 @@ class ProposedActionStore:
                 (
                     tool,
                     description,
-                    json.dumps(payload or {}, sort_keys=True, separators=(",", ":")),
+                    json.dumps(normalized_payload, sort_keys=True, separators=(",", ":")),
                     risk,
                     PENDING,
                     _utc_now(),
@@ -239,6 +244,14 @@ class ActionExecutorRegistry:
             raise LookupError(
                 f"No allow-listed executor is installed for tool '{action['tool']}'."
             )
+
+        try:
+            validate_action_payload(action["payload"])
+        except ValueError as exc:
+            self.store.record_execution_failure(action_id, "payload_policy_violation")
+            raise PermissionError(
+                f"Action {action_id} payload no longer satisfies execution policy."
+            ) from exc
 
         try:
             result = executor(action["payload"])
