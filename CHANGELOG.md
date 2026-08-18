@@ -1,5 +1,15 @@
 # Changelog
 
+## v2026.08.19
+
+- Started the next daily Vayu development version.
+- Generalized planner-only payload validation into a shared action payload policy used by the durable action store and executor boundary.
+- Direct action proposals now fail closed on oversized, deeply nested, non-JSON, secret-bearing, and executable-like payloads before persistence.
+- Approved actions are revalidated immediately before an allow-listed executor is invoked, preventing stored-payload drift from bypassing the safety policy.
+- Execution-time policy violations are durably recorded as `execution_failed` with `payload_policy_violation`, while the adapter is never called.
+- Added regression coverage proving unsafe direct proposals are not stored and tampered approved payloads cannot reach an executor.
+- Preserved the KUPPA AI-inspired separation of intelligence from authority while making the safety boundary independent of how an action was proposed.
+
 ## v2026.08.18
 
 - Started the next daily Vayu development version.
