@@ -15,7 +15,9 @@ from app.payload_policy import validate_action_payload
 PENDING = "pending_approval"
 APPROVED = "approved"
 REJECTED = "rejected"
+EXECUTING = "executing"
 EXECUTED = "executed"
+EXECUTION_FAILED = "execution_failed"
 
 
 def _utc_now() -> str:
@@ -167,19 +169,29 @@ class ProposedActionStore:
             ).fetchall()
         return [dict(row) for row in rows]
 
-    def _transition(self, action_id: int, target: str, timestamp_column: str) -> dict[str, Any]:
-        if target not in {APPROVED, REJECTED, EXECUTED}:
+    def _transition(
+        self,
+        action_id: int,
+        target: str,
+        expected: str,
+        timestamp_column: str | None = None,
+        detail: str | None = None,
+    ) -> dict[str, Any]:
+        allowed = {APPROVED, REJECTED, EXECUTING, EXECUTED, EXECUTION_FAILED}
+        if target not in allowed:
             raise ValueError("Unsupported action transition.")
 
-        expected = APPROVED if target == EXECUTED else PENDING
+        values: list[Any] = [target]
+        set_clause = "status = ?"
+        if timestamp_column is not None:
+            set_clause += f", {timestamp_column} = ?"
+            values.append(_utc_now())
+        values.extend([action_id, expected])
+
         with self._lock, self._connect() as connection:
             cursor = connection.execute(
-                f"""
-                UPDATE proposed_actions
-                SET status = ?, {timestamp_column} = ?
-                WHERE id = ? AND status = ?
-                """,
-                (target, _utc_now(), action_id, expected),
+                f"UPDATE proposed_actions SET {set_clause} WHERE id = ? AND status = ?",
+                values,
             )
             if cursor.rowcount != 1:
                 row = connection.execute(
@@ -191,17 +203,29 @@ class ProposedActionStore:
                 raise ValueError(
                     f"Action {action_id} cannot transition from {row['status']} to {target}."
                 )
-            self._event(connection, action_id, target)
+            self._event(connection, action_id, target, detail)
         return self.get(action_id)
 
     def approve(self, action_id: int) -> dict[str, Any]:
-        return self._transition(action_id, APPROVED, "approved_at")
+        return self._transition(action_id, APPROVED, PENDING, "approved_at")
 
     def reject(self, action_id: int) -> dict[str, Any]:
-        return self._transition(action_id, REJECTED, "rejected_at")
+        return self._transition(action_id, REJECTED, PENDING, "rejected_at")
+
+    def claim_execution(self, action_id: int) -> dict[str, Any]:
+        """Atomically claim an approved action so only one worker may invoke its adapter."""
+        return self._transition(action_id, EXECUTING, APPROVED)
 
     def mark_executed(self, action_id: int) -> dict[str, Any]:
-        return self._transition(action_id, EXECUTED, "executed_at")
+        return self._transition(action_id, EXECUTED, EXECUTING, "executed_at")
+
+    def mark_execution_failed(self, action_id: int, detail: str) -> dict[str, Any]:
+        return self._transition(
+            action_id,
+            EXECUTION_FAILED,
+            EXECUTING,
+            detail=detail[:500],
+        )
 
     def record_execution_failure(self, action_id: int, detail: str) -> None:
         with self._lock, self._connect() as connection:
@@ -254,9 +278,16 @@ class ActionExecutorRegistry:
             ) from exc
 
         try:
+            self.store.claim_execution(action_id)
+        except ValueError as exc:
+            raise PermissionError(
+                f"Action {action_id} is no longer available for execution."
+            ) from exc
+
+        try:
             result = executor(action["payload"])
         except Exception as exc:
-            self.store.record_execution_failure(action_id, type(exc).__name__)
+            self.store.mark_execution_failed(action_id, type(exc).__name__)
             raise
 
         updated = self.store.mark_executed(action_id)

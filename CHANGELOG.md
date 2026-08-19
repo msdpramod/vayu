@@ -1,5 +1,14 @@
 # Changelog
 
+## v2026.08.20
+
+- Started the next daily Vayu development version.
+- Added an atomic `approved -> executing` claim before any allow-listed adapter invocation so concurrent workers cannot execute the same approved action twice.
+- Added terminal `execution_failed` state for ambiguous downstream failures; failed side effects are not implicitly retried because the external system may already have partially completed them.
+- Preserved payload-policy validation and human approval while strengthening the execution boundary against duplicate side effects.
+- Added concurrency regression coverage proving one and only one worker can own an approved action, plus failure-state and store-level claim tests.
+- Reused the KUPPA AI-inspired intelligence-versus-authority separation without introducing any runtime dependency between repositories.
+
 ## v2026.08.19
 
 - Started the next daily Vayu development version.
