@@ -46,6 +46,7 @@ def test_action_api_fails_closed_until_approved_and_adapter_exists(tmp_path, mon
     assert [event["event"] for event in events.json()["events"]] == [
         "proposed",
         "approved",
+        "executing",
         "executed",
     ]
 
