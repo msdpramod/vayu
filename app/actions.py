@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
@@ -15,6 +15,7 @@ from app.payload_policy import validate_action_payload
 PENDING = "pending_approval"
 APPROVED = "approved"
 REJECTED = "rejected"
+EXPIRED = "expired"
 EXECUTING = "executing"
 EXECUTED = "executed"
 EXECUTION_FAILED = "execution_failed"
@@ -27,8 +28,20 @@ def _utc_now() -> str:
 class ProposedActionStore:
     """Durable human-in-the-loop action lifecycle backed by SQLite."""
 
-    def __init__(self, db_path: str | None = None):
+    def __init__(
+        self,
+        db_path: str | None = None,
+        approval_ttl_seconds: int | None = None,
+    ):
         self.db_path = Path(db_path or os.getenv("VAYU_DB_PATH", "data/vayu.db"))
+        configured_ttl = (
+            approval_ttl_seconds
+            if approval_ttl_seconds is not None
+            else int(os.getenv("VAYU_APPROVAL_TTL_SECONDS", "900"))
+        )
+        if configured_ttl < 1:
+            raise ValueError("Approval TTL must be at least one second.")
+        self.approval_ttl_seconds = configured_ttl
         self._lock = Lock()
         self._initialize()
 
@@ -53,6 +66,7 @@ class ProposedActionStore:
                     created_at TEXT NOT NULL,
                     approved_at TEXT,
                     rejected_at TEXT,
+                    expired_at TEXT,
                     executed_at TEXT
                 );
 
@@ -72,6 +86,12 @@ class ProposedActionStore:
                     ON action_events(action_id, id);
                 """
             )
+            columns = {
+                row["name"]
+                for row in connection.execute("PRAGMA table_info(proposed_actions)").fetchall()
+            }
+            if "expired_at" not in columns:
+                connection.execute("ALTER TABLE proposed_actions ADD COLUMN expired_at TEXT")
 
     @staticmethod
     def _decode(row: sqlite3.Row) -> dict[str, Any]:
@@ -177,7 +197,14 @@ class ProposedActionStore:
         timestamp_column: str | None = None,
         detail: str | None = None,
     ) -> dict[str, Any]:
-        allowed = {APPROVED, REJECTED, EXECUTING, EXECUTED, EXECUTION_FAILED}
+        allowed = {
+            APPROVED,
+            REJECTED,
+            EXPIRED,
+            EXECUTING,
+            EXECUTED,
+            EXECUTION_FAILED,
+        }
         if target not in allowed:
             raise ValueError("Unsupported action transition.")
 
@@ -213,8 +240,53 @@ class ProposedActionStore:
         return self._transition(action_id, REJECTED, PENDING, "rejected_at")
 
     def claim_execution(self, action_id: int) -> dict[str, Any]:
-        """Atomically claim an approved action so only one worker may invoke its adapter."""
-        return self._transition(action_id, EXECUTING, APPROVED)
+        """Atomically claim a fresh approval; stale approvals are terminally expired."""
+        now = datetime.now(timezone.utc)
+        with self._lock, self._connect() as connection:
+            row = connection.execute(
+                "SELECT status, approved_at FROM proposed_actions WHERE id = ?",
+                (action_id,),
+            ).fetchone()
+            if row is None:
+                raise KeyError(f"Action {action_id} was not found.")
+            if row["status"] != APPROVED:
+                raise ValueError(
+                    f"Action {action_id} cannot transition from {row['status']} to {EXECUTING}."
+                )
+            if not row["approved_at"]:
+                raise ValueError(f"Action {action_id} has no approval timestamp.")
+
+            approved_at = datetime.fromisoformat(row["approved_at"])
+            expires_at = approved_at + timedelta(seconds=self.approval_ttl_seconds)
+            if now >= expires_at:
+                connection.execute(
+                    """
+                    UPDATE proposed_actions
+                    SET status = ?, expired_at = ?
+                    WHERE id = ? AND status = ?
+                    """,
+                    (EXPIRED, now.isoformat(), action_id, APPROVED),
+                )
+                self._event(
+                    connection,
+                    action_id,
+                    EXPIRED,
+                    f"approval_ttl_seconds={self.approval_ttl_seconds}",
+                )
+                expired = True
+            else:
+                cursor = connection.execute(
+                    "UPDATE proposed_actions SET status = ? WHERE id = ? AND status = ?",
+                    (EXECUTING, action_id, APPROVED),
+                )
+                if cursor.rowcount != 1:
+                    raise ValueError(f"Action {action_id} is no longer approved.")
+                self._event(connection, action_id, EXECUTING)
+                expired = False
+
+        if expired:
+            raise ValueError(f"Action {action_id} approval has expired.")
+        return self.get(action_id)
 
     def mark_executed(self, action_id: int) -> dict[str, Any]:
         return self._transition(action_id, EXECUTED, EXECUTING, "executed_at")

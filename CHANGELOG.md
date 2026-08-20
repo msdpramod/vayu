@@ -1,5 +1,15 @@
 # Changelog
 
+## v2026.08.21
+
+- Started the next daily Vayu development version.
+- Added time-bounded human approvals with a default 15-minute TTL, configurable via `VAYU_APPROVAL_TTL_SECONDS`.
+- Added a terminal `expired` lifecycle state and durable `expired_at` timestamp so stale approvals cannot trigger delayed side effects.
+- Enforced approval freshness atomically at the execution-claim boundary before any allow-listed adapter can run.
+- Added an in-place SQLite schema migration for existing Vayu databases so the new approval lifecycle remains backward-compatible.
+- Added regression coverage proving stale approvals never invoke executors, fresh approvals still execute normally, and existing databases gain the new column safely.
+- Preserved the KUPPA AI-inspired separation of intelligence from authority without introducing cross-repository runtime coupling.
+
 ## v2026.08.20
 
 - Started the next daily Vayu development version.
