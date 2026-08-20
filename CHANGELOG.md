@@ -8,6 +8,8 @@
 - Enforced approval freshness atomically at the execution-claim boundary before any allow-listed adapter can run.
 - Added an in-place SQLite schema migration for existing Vayu databases so the new approval lifecycle remains backward-compatible.
 - Added regression coverage proving stale approvals never invoke executors, fresh approvals still execute normally, and existing databases gain the new column safely.
+- Added a proposal-only cognitive evolution engine that scores executive control, memory, reasoning, attention, world model, skills, safety, and perception using explicit evidence.
+- Added conservative baseline capability signals, weakest-domain selection, human-review-required evolution proposals, regression tests, and cognitive-evolution architecture documentation.
 - Preserved the KUPPA AI-inspired separation of intelligence from authority without introducing cross-repository runtime coupling.
 
 ## v2026.08.20
