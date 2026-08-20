@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import sqlite3
 
 import pytest
 
@@ -59,9 +60,7 @@ def test_fresh_approval_still_executes_normally(tmp_path):
 
 def test_existing_database_is_migrated_with_expired_at_column(tmp_path):
     db_path = tmp_path / "actions.db"
-    store = ProposedActionStore(str(db_path))
-    with store._connect() as connection:
-        connection.execute("ALTER TABLE proposed_actions RENAME TO proposed_actions_old")
+    with sqlite3.connect(db_path) as connection:
         connection.execute(
             """
             CREATE TABLE proposed_actions (
@@ -78,7 +77,6 @@ def test_existing_database_is_migrated_with_expired_at_column(tmp_path):
             )
             """
         )
-        connection.execute("DROP TABLE proposed_actions_old")
 
     migrated = ProposedActionStore(str(db_path))
     with migrated._connect() as connection:
