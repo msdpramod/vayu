@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.08.22
+
+- Started the next daily Vayu cognitive development version.
+- Added a bounded deterministic attention/salience controller as the prerequisite for future multimodal perception.
+- Added typed stimuli with validated importance, urgency, novelty and confidence signals plus deterministic ranking and tie-breaking.
+- Added interruption policy that requires both absolute salience and a margin over current focus, with a narrow high-confidence/high-urgency safety override.
+- Bounded attention batches to 64 stimuli, rejected duplicate IDs, and kept the subsystem pure: no model calls, persistence, networking, tools or execution authority.
+- Added regression coverage for ranking, uncertain novelty, ordinary interruption suppression, safety interruption, low-confidence safety rejection and resource bounds.
+- Raised the evidence-backed attention baseline conservatively from 0.20 to 0.38 while leaving perception at 0.15 because live multimodal ingestion is still absent.
+- Added dated evolution evidence documenting the hypothesis, regression gate, rollback point, lesson and next perception target.
+
 ## v2026.08.21
 
 - Started the next daily Vayu development version.
