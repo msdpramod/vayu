@@ -97,7 +97,7 @@ def baseline_signals() -> list[CapabilitySignal]:
         CapabilitySignal(CognitiveDomain.MEMORY, "durable memory", 0.55, "SQLite-backed persistence exists but consolidation/semantic recall are limited"),
         CapabilitySignal(CognitiveDomain.REASONING, "planner", 0.48, "structured local/Ollama planning exists but critic and verification loops are limited"),
         CapabilitySignal(CognitiveDomain.EXECUTIVE, "goal control", 0.42, "action orchestration exists but hierarchical goals and long-horizon planning are limited"),
-        CapabilitySignal(CognitiveDomain.ATTENTION, "attention selection", 0.20, "no dedicated salience/attention controller yet"),
+        CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.38, "bounded deterministic salience ranking and interruption policy now exist; command/perception integration is still pending"),
         CapabilitySignal(CognitiveDomain.WORLD_MODEL, "environment state", 0.18, "no unified entity/state graph yet"),
         CapabilitySignal(CognitiveDomain.SKILLS, "skill registry", 0.52, "explicit skills exist without learned success/latency scoring"),
         CapabilitySignal(CognitiveDomain.PERCEPTION, "multimodal inputs", 0.15, "voice/vision perception is not yet integrated"),
