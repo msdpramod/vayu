@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.23
+
+- Started the next daily Vayu cognitive development version.
+- Added a bounded Perception Cortex gateway for user text, voice, vision, browser, device and file observations.
+- Normalized all sensory evidence into the existing attention boundary instead of giving individual adapters direct planning or execution authority.
+- Added strict observation validation for IDs, sources, summaries, timezone-aware timestamps and `[0, 1]` evidence scores.
+- Bounded perception batches to 64 observations, rejected duplicate IDs, and failed closed on observations more than 60 seconds in the future.
+- Kept voice/user input as ordinary user-attention stimuli rather than privileged safety overrides.
+- Added regression coverage for multimodal attention flow, duplicate IDs, clock skew, naive timestamps, batch limits and safety-override isolation.
+- Raised perception evidence conservatively from 0.15 to 0.32 and attention from 0.38 to 0.42; no live microphone/camera/browser/device adapter capability is claimed.
+- Identified the world model as the next highest-leverage cognitive dependency so attended observations can become durable entity/state knowledge.
+
 ## v2026.08.22
 
 - Started the next daily Vayu cognitive development version.
