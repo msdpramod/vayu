@@ -24,9 +24,11 @@ def test_domain_scores_average_multiple_signals():
 
 def test_proposal_targets_weakest_domain_and_requires_review():
     engine = EvolutionEngine(target_score=0.85)
-    proposal = engine.propose_next(baseline_signals())
+    signals = baseline_signals()
+    proposal = engine.propose_next(signals)
     assert proposal is not None
-    assert proposal.domain == CognitiveDomain.PERCEPTION
+    assert engine.weakest_domain(signals) == CognitiveDomain.WORLD_MODEL
+    assert proposal.domain == CognitiveDomain.WORLD_MODEL
     assert proposal.requires_human_review is True
     assert proposal.priority > 0
 
