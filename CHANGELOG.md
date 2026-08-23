@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.08.24
+
+- Started the next daily Vayu cognitive development version.
+- Added a durable evidence-aware World Model with bounded entities, typed relationships, temporal facts, confidence and provenance.
+- Added contradiction handling: stronger contradictory evidence supersedes the current belief while preserving history; weaker contradictory evidence is retained as historical evidence without replacing the current belief.
+- Added stable entity identity/type enforcement, timezone-aware observation timestamps, bounded values/provenance, query caps and SQLite indexes.
+- Kept the World Model cognition-only: no planner, executor, network, permission or action authority.
+- Added regression coverage for persistence, relationships, high/low-confidence contradictions, evidence strengthening, invalid evidence and entity-type conflicts.
+- Raised world-model evidence conservatively from 0.18 to 0.36; automatic grounding from perception/attention into entities and facts is not yet claimed.
+- Identified Perception at 0.32 as the next weakest measured domain, with grounding into the World Model as the highest-leverage bridge before adding live sensors.
+
 ## v2026.08.23
 
 - Started the next daily Vayu cognitive development version.
@@ -89,7 +100,7 @@
 - Reused KUPPA AI's human-in-the-loop proposed-action pattern without creating a runtime dependency between repositories.
 - Added durable proposed actions with explicit `pending_approval`, `approved`, `rejected`, and `executed` lifecycle states.
 - Added a hard execution gate and allow-listed executor registry; unapproved actions and unknown adapters fail closed.
-- Added durable action lifecycle events for proposal, approval, rejection, execution failures, and successful execution.
+- Added durable action lifecycle events for proposal, approval, rejection, execution failures, and successful allow-listed execution.
 - Added action proposal/list/detail/event plus approve, reject, and execute APIs.
 - Added unit and API regression tests covering pre-approval blocking, terminal rejection, missing adapters, durable events, and successful allow-listed execution.
 - Documented the planner-versus-executor boundary so future LLM, email, calendar, browser, desktop, and smart-home integrations cannot bypass human approval.
