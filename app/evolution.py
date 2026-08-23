@@ -60,10 +60,7 @@ class EvolutionEngine:
         grouped: dict[CognitiveDomain, list[float]] = {}
         for signal in signals:
             grouped.setdefault(signal.domain, []).append(signal.score)
-        return {
-            domain: round(sum(values) / len(values), 4)
-            for domain, values in grouped.items()
-        }
+        return {domain: round(sum(values) / len(values), 4) for domain, values in grouped.items()}
 
     def weakest_domain(self, signals: Iterable[CapabilitySignal]) -> CognitiveDomain | None:
         scores = self.domain_scores(signals)
@@ -97,8 +94,8 @@ def baseline_signals() -> list[CapabilitySignal]:
         CapabilitySignal(CognitiveDomain.MEMORY, "durable memory", 0.55, "SQLite-backed persistence exists but consolidation/semantic recall are limited"),
         CapabilitySignal(CognitiveDomain.REASONING, "planner", 0.48, "structured local/Ollama planning exists but critic and verification loops are limited"),
         CapabilitySignal(CognitiveDomain.EXECUTIVE, "goal control", 0.42, "action orchestration exists but hierarchical goals and long-horizon planning are limited"),
-        CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.42, "bounded deterministic salience ranking now receives normalized perception evidence; durable attentional context is still pending"),
-        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "environment state", 0.18, "no unified entity/state graph yet"),
+        CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.42, "bounded deterministic salience ranking receives normalized perception evidence; durable attentional context is still pending"),
+        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware state graph", 0.36, "durable entities, relationships, temporal facts, provenance/confidence and contradiction handling are tested; automatic perception-to-world-model grounding is not yet integrated"),
         CapabilitySignal(CognitiveDomain.SKILLS, "skill registry", 0.52, "explicit skills exist without learned success/latency scoring"),
         CapabilitySignal(CognitiveDomain.PERCEPTION, "normalized sensory boundary", 0.32, "bounded multimodal observation normalization feeds attention, but live voice/vision/browser/device adapters are not integrated"),
     ]
