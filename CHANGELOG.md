@@ -1,5 +1,18 @@
 # Changelog
 
+## v2026.08.25
+
+- Started the next daily Vayu cognitive development version.
+- Added an attention-gated cognitive grounding layer connecting Perception -> Attention -> World Model without adding action authority.
+- Bound each grounding candidate to the exact perception observation and attention decision by observation ID; mismatches fail closed.
+- Added a configurable salience threshold so low-priority sensory evidence is not persisted as durable belief.
+- Capped grounded confidence to the weaker of source-observation confidence and candidate confidence, preventing extractors from manufacturing stronger certainty than the evidence supports.
+- Preserved modality/source/observation provenance in grounded World Model facts and reused the existing contradiction policy.
+- Bounded grounding batches to 32 candidates and rejected duplicate observations.
+- Added regression coverage for successful grounding, confidence capping, low-salience abstention, cross-observation rejection, duplicate rejection and batch limits.
+- Raised perception evidence conservatively from 0.32 to 0.36 and world-model evidence from 0.36 to 0.40; no live sensors or free-form semantic understanding are claimed.
+- Identified schema-constrained semantic extraction with abstention as the next high-leverage Perception target before live microphone/camera integration.
+
 ## v2026.08.24
 
 - Started the next daily Vayu cognitive development version.
