@@ -95,7 +95,7 @@ def baseline_signals() -> list[CapabilitySignal]:
         CapabilitySignal(CognitiveDomain.REASONING, "planner", 0.48, "structured local/Ollama planning exists but critic and verification loops are limited"),
         CapabilitySignal(CognitiveDomain.EXECUTIVE, "goal control", 0.42, "action orchestration exists but hierarchical goals and long-horizon planning are limited"),
         CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.42, "bounded deterministic salience ranking receives normalized perception evidence; durable attentional context is still pending"),
-        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware state graph", 0.36, "durable entities, relationships, temporal facts, provenance/confidence and contradiction handling are tested; automatic perception-to-world-model grounding is not yet integrated"),
+        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware grounded state graph", 0.40, "durable temporal facts now accept attention-gated perception evidence with provenance and confidence caps; semantic extraction remains manual"),
         CapabilitySignal(CognitiveDomain.SKILLS, "skill registry", 0.52, "explicit skills exist without learned success/latency scoring"),
-        CapabilitySignal(CognitiveDomain.PERCEPTION, "normalized sensory boundary", 0.32, "bounded multimodal observation normalization feeds attention, but live voice/vision/browser/device adapters are not integrated"),
+        CapabilitySignal(CognitiveDomain.PERCEPTION, "normalized sensory boundary with grounding", 0.36, "bounded multimodal observations can become attention-gated structured knowledge, but live adapters and semantic extraction are not integrated"),
     ]
