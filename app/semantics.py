@@ -105,10 +105,11 @@ class SemanticUnderstandingBoundary:
             raise ValueError("minimum_confidence must be between 0 and 1")
         if not 0.0 <= minimum_salience <= 1.0:
             raise ValueError("minimum_salience must be between 0 and 1")
-        schema_map = {schema.name: schema for schema in schemas}
+        schema_list = list(schemas)
+        schema_map = {schema.name: schema for schema in schema_list}
         if not schema_map:
             raise ValueError("at least one semantic schema is required")
-        if len(schema_map) != len(list(schema_map.values())):
+        if len(schema_map) != len(schema_list):
             raise ValueError("semantic schema names must be unique")
         self.schemas = schema_map
         self.minimum_confidence = minimum_confidence
