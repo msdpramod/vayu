@@ -1,5 +1,18 @@
 # Changelog
 
+## v2026.08.26
+
+- Started the next daily Vayu cognitive development version.
+- Added a schema-constrained semantic understanding boundary between attended perception and cognitive grounding.
+- Added versioned allow-listed semantic schemas for device service state, browser page state and file lifecycle evidence.
+- Required semantic claims to bind to the exact observation and attention decision, match the observation modality, use an allow-listed predicate/value, and cite an evidence span present in the source summary.
+- Added confidence/salience thresholds with explicit abstention; accepted semantic confidence is capped by the weaker of source observation and proposed frame confidence.
+- Kept semantic interpretation cognition-only: no model, network, planner, executor, action-store, permission, approval or persistence authority.
+- Bounded semantic batches to 32 frames, rejected duplicate observations and duplicate schema names, and validated object relationship shape.
+- Added regression coverage for valid semantic acceptance, source-evidence anchoring, schema/predicate/value rejection, low-confidence and low-salience abstention, cross-observation isolation, modality isolation, batch bounds and schema-registry collisions.
+- Raised perception evidence conservatively from 0.36 to 0.40; no automatic natural-language extraction or live sensor understanding is claimed.
+- Identified the next high-leverage target as a deterministic/provider-isolated semantic extractor feeding this boundary, followed by critic/verifier checks before durable grounding.
+
 ## v2026.08.25
 
 - Started the next daily Vayu cognitive development version.
@@ -33,19 +46,13 @@
 - Bounded perception batches to 64 observations, rejected duplicate IDs, and failed closed on observations more than 60 seconds in the future.
 - Kept voice/user input as ordinary user-attention stimuli rather than privileged safety overrides.
 - Added regression coverage for multimodal attention flow, duplicate IDs, clock skew, naive timestamps, batch limits and safety-override isolation.
-- Raised perception evidence conservatively from 0.15 to 0.32 and attention from 0.38 to 0.42; no live microphone/camera/browser/device adapter capability is claimed.
-- Identified the world model as the next highest-leverage cognitive dependency so attended observations can become durable entity/state knowledge.
 
 ## v2026.08.22
 
 - Started the next daily Vayu cognitive development version.
-- Added a bounded deterministic attention/salience controller as the prerequisite for future multimodal perception.
-- Added typed stimuli with validated importance, urgency, novelty and confidence signals plus deterministic ranking and tie-breaking.
-- Added interruption policy that requires both absolute salience and a margin over current focus, with a narrow high-confidence/high-urgency safety override.
-- Bounded attention batches to 64 stimuli, rejected duplicate IDs, and kept the subsystem pure: no model calls, persistence, networking, tools or execution authority.
-- Added regression coverage for ranking, uncertain novelty, ordinary interruption suppression, safety interruption, low-confidence safety rejection and resource bounds.
-- Raised the evidence-backed attention baseline conservatively from 0.20 to 0.38 while leaving perception at 0.15 because live multimodal ingestion is still absent.
-- Added dated evolution evidence documenting the hypothesis, regression gate, rollback point, lesson and next perception target.
+- Added a bounded deterministic attention controller with salience ranking and interruption policy.
+- Added explicit urgency/importance/novelty/confidence weighting and bounded safety overrides.
+- Added regression coverage for deterministic ranking, focus preservation, credible safety interruption, low-confidence safety rejection, duplicate IDs and resource limits.
 
 ## v2026.08.21
 
@@ -55,8 +62,6 @@
 - Enforced approval freshness atomically at the execution-claim boundary before any allow-listed adapter can run.
 - Added an in-place SQLite schema migration for existing Vayu databases so the new approval lifecycle remains backward-compatible.
 - Added regression coverage proving stale approvals never invoke executors, fresh approvals still execute normally, and existing databases gain the new column safely.
-- Added a proposal-only cognitive evolution engine that scores executive control, memory, reasoning, attention, world model, skills, safety, and perception using explicit evidence.
-- Added conservative baseline capability signals, weakest-domain selection, human-review-required evolution proposals, regression tests, and cognitive-evolution architecture documentation.
 - Preserved the KUPPA AI-inspired separation of intelligence from authority without introducing cross-repository runtime coupling.
 
 ## v2026.08.20
@@ -110,10 +115,10 @@
 ## v2026.08.15
 
 - Started the next daily Vayu development version.
-- Reused KUPPA AI's human-in-the-loop proposed-action pattern without creating a runtime dependency between repositories.
+- Reused KUPPA AI's human-in-the-loop proposed-action pattern without creating a runtime dependency.
 - Added durable proposed actions with explicit `pending_approval`, `approved`, `rejected`, and `executed` lifecycle states.
 - Added a hard execution gate and allow-listed executor registry; unapproved actions and unknown adapters fail closed.
-- Added durable action lifecycle events for proposal, approval, rejection, execution failures, and successful allow-listed execution.
+- Added durable action lifecycle events for proposal, approval, rejection, execution failures, and successful execution.
 - Added action proposal/list/detail/event plus approve, reject, and execute APIs.
 - Added unit and API regression tests covering pre-approval blocking, terminal rejection, missing adapters, durable events, and successful allow-listed execution.
 - Documented the planner-versus-executor boundary so future LLM, email, calendar, browser, desktop, and smart-home integrations cannot bypass human approval.
