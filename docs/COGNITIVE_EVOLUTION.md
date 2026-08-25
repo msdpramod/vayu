@@ -28,41 +28,59 @@ The evolution engine is proposal-only. It cannot modify source code, permissions
 
 ## Attention subsystem
 
-`app/attention.py` is the first dedicated cognitive-control subsystem. It accepts bounded `AttentionStimulus` objects and deterministically ranks them using importance, urgency, novelty and confidence. It can recommend whether a stimulus should interrupt the current focus, but it cannot execute actions, call models, access networks or modify durable state.
+`app/attention.py` provides deterministic cognitive focus control. It accepts bounded `AttentionStimulus` objects and ranks them using importance, urgency, novelty and confidence. It can recommend whether a stimulus should interrupt current focus, but it cannot execute actions, call models, access networks or modify durable state.
 
-Design constraints:
-
-- at most 64 stimuli per ranking batch;
-- caller scores are validated to `[0, 1]`;
-- duplicate stimulus IDs are rejected;
-- deterministic ordering prevents unstable focus oscillation on ties;
-- urgency and importance dominate novelty;
-- confidence limits uncertain novelty from hijacking focus;
-- safety signals receive only a bounded evidence-weighted boost, never an automatic maximum score;
-- a safety interruption override requires both high urgency and high confidence;
-- ordinary interruptions must clear both an absolute threshold and a margin over current focus.
+Key constraints include bounded batches, validated scores, duplicate rejection, deterministic ordering, confidence-limited novelty, bounded safety boosts, and interruption thresholds that must exceed both an absolute floor and the current focus by a margin.
 
 ## Perception subsystem
 
-`app/perception.py` adds Vayu's first Perception Cortex boundary. It normalizes evidence from user text, voice, vision, browser, device and file modalities into bounded attention stimuli. Perception is deliberately an evidence-only layer: it has no planner, executor, action-store, permission, model or network capability.
+`app/perception.py` is Vayu's normalized sensory boundary. Evidence from user text, voice, vision, browser, device and file modalities becomes attention stimuli through one bounded contract. Perception remains evidence-only and has no planner, executor, action-store, permission, model or network capability.
 
-Design constraints:
+`app/grounding.py` then connects attended evidence to the durable World Model. Grounding binds observation identity to the attention decision, applies a salience threshold, caps confidence by source evidence and preserves modality/source provenance. Raw perception therefore cannot write arbitrary durable beliefs directly.
 
-- observations require unique bounded IDs, bounded source names and summaries, and timezone-aware timestamps;
-- importance, urgency, novelty and confidence are validated to `[0, 1]`;
-- batches are capped at 64 observations;
-- observations more than 60 seconds in the future fail closed to contain clock-skew/spoofing errors;
-- voice and user-text observations become ordinary user-attention stimuli, never privileged safety overrides;
-- all modalities converge through the same attention controller, preventing individual adapters from inventing their own action authority;
-- real microphone, camera, browser and device adapters remain outside this boundary and must be integrated separately with explicit permissions.
+## Semantic understanding boundary
 
-This is intentionally a normalized sensory bus, not a sensor implementation. Vayu can now reason about evidence from multiple modalities through one contract without coupling cognitive control to any particular microphone, camera, browser or operating-system provider.
+`app/semantics.py` adds a cognition-only semantic verification stage before grounding. A provider may propose a `SemanticFrame`, but Vayu accepts it only when it passes an explicit versioned schema.
+
+Current schemas cover a deliberately narrow set of structured meanings:
+
+- `device.service_status.v1`
+- `browser.page_state.v1`
+- `file.lifecycle.v1`
+
+The semantic boundary requires:
+
+- exact observation/attention/frame identity binding;
+- modality/schema agreement;
+- allow-listed predicates and, where defined, allow-listed values;
+- an evidence span that must actually occur in the source observation summary;
+- minimum attention salience and effective evidence confidence;
+- confidence capped to `min(observation confidence, frame confidence)`;
+- bounded subject/evidence fields, bounded batches and duplicate rejection;
+- consistent object relationship shape when an object entity is proposed.
+
+Failure produces abstention rather than a guessed fact. The boundary has no model, network, planner, executor, persistence, action-store, permission or approval authority. Future deterministic or LLM-backed extractors must feed this boundary rather than writing directly to the World Model.
+
+## World Model
+
+`app/world_model.py` stores durable typed entities and temporal facts with confidence and provenance. Stronger contradictory evidence can supersede a current belief while preserving history; weaker contradictory evidence is retained without displacing the stronger current state. This subsystem is also cognition-only.
 
 ## Current evidence snapshot
 
-Attention moves conservatively from `0.38` to `0.42` because normalized multimodal evidence now reaches the tested attention boundary. Perception moves from `0.15` to `0.32` because a bounded multimodal normalization layer and failure-path tests now exist. Neither score claims live sensory understanding: microphone, vision-model, browser and device adapters are not yet connected.
+- Safety: `0.88` — time-bounded approval lifecycle and fail-closed execution.
+- Memory: `0.55` — durable SQLite memory exists; consolidation and semantic recall remain limited.
+- Skills: `0.52` — explicit registry exists; learned reliability/latency/cost scoring is absent.
+- Reasoning: `0.48` — structured planning exists; critic/verifier and simulation remain limited.
+- Executive: `0.42` — orchestration exists; hierarchical goals and long-horizon control remain limited.
+- Attention: `0.42` — bounded salience control consumes normalized perception but lacks durable attentional context.
+- World model: `0.40` — durable evidence-aware state graph with grounding and contradiction handling.
+- Perception: `0.40` — normalized observations now pass through attention, semantic schema validation and grounding, but automatic extraction and live sensory adapters are not yet integrated.
 
-The lowest demonstrated capability is now the world model at `0.18`. That is the next high-leverage target because perception and attention need a durable representation of entities, relationships, facts, observations and current state before long-horizon executive planning can become reliable.
+The scores are evidence labels, not claims of human-level capability. They should only move when tests or observable behavior justify the change.
+
+## Next scientific direction
+
+The next high-leverage step is an isolated semantic extraction provider that proposes frames into the new verifier, beginning with deterministic structured device/browser/file inputs. After extraction is reliable, Vayu should add a critic/verifier stage that can compare proposed meaning against source evidence and the existing World Model before durable belief updates. Live microphone/camera integration should remain downstream of these cognitive safety boundaries.
 
 ## Long-term direction
 
