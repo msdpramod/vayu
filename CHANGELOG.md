@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.27
+
+- Started the next daily Vayu cognitive development version.
+- Added a cognition-only semantic critic/verifier after schema-constrained semantic admission and before durable grounding.
+- Added explicit `verified`, `abstain`, and `conflict` dispositions so credible contradictions are surfaced instead of silently overwriting existing world knowledge.
+- Prevented any critic-accepted candidate from carrying confidence above the original perception evidence.
+- Added bounded current-World-Model contradiction review and ignored superseded/historical facts during present-state verification.
+- Added regression coverage for valid verification, upstream abstention, confidence escalation, stronger contradictions, close conflicts, matching/historical evidence, cross-observation isolation, and context limits.
+- Raised reasoning evidence conservatively from 0.48 to 0.50; no claim of general plan critique or causal simulation is made.
+- Preserved all execution safety boundaries; the critic has no persistence, planner, model, network, permission, approval, executor, or external-action authority.
+- Identified the next target as a deterministic semantic extractor feeding `SemanticUnderstandingBoundary -> SemanticCritic -> CognitiveGroundingGateway`, followed by broader planner critic/simulation loops.
+
 ## v2026.08.26
 
 - Started the next daily Vayu cognitive development version.

@@ -61,6 +61,22 @@ The semantic boundary requires:
 
 Failure produces abstention rather than a guessed fact. The boundary has no model, network, planner, executor, persistence, action-store, permission or approval authority. Future deterministic or LLM-backed extractors must feed this boundary rather than writing directly to the World Model.
 
+## Critic / verifier subsystem
+
+`app/critic.py` adds an independent second-pass critic after semantic admission and before durable grounding. Passing a schema is therefore no longer sufficient by itself: the claim must also survive source-confidence and existing-world-context checks.
+
+The critic:
+
+- requires exact observation/result/candidate identity binding;
+- rejects any confidence escalation beyond the original sensory evidence;
+- examines only bounded current World Model context;
+- ignores historical contradictions that are no longer current;
+- abstains when substantially stronger contradictory evidence already exists;
+- returns an explicit `conflict` disposition when competing beliefs are close enough that silent overwrite would be unsafe;
+- never boosts semantic confidence merely because a matching current fact exists.
+
+The critic is cognition-only and has no persistence, model, network, planner, executor, permission, approval, or action authority. A conflict is information for later reasoning, not permission to act.
+
 ## World Model
 
 `app/world_model.py` stores durable typed entities and temporal facts with confidence and provenance. Stronger contradictory evidence can supersede a current belief while preserving history; weaker contradictory evidence is retained without displacing the stronger current state. This subsystem is also cognition-only.
@@ -70,17 +86,17 @@ Failure produces abstention rather than a guessed fact. The boundary has no mode
 - Safety: `0.88` — time-bounded approval lifecycle and fail-closed execution.
 - Memory: `0.55` — durable SQLite memory exists; consolidation and semantic recall remain limited.
 - Skills: `0.52` — explicit registry exists; learned reliability/latency/cost scoring is absent.
-- Reasoning: `0.48` — structured planning exists; critic/verifier and simulation remain limited.
+- Reasoning: `0.50` — structured planning now has an independent semantic critic, but general plan critique, causal simulation and multi-hypothesis reasoning remain limited.
 - Executive: `0.42` — orchestration exists; hierarchical goals and long-horizon control remain limited.
 - Attention: `0.42` — bounded salience control consumes normalized perception but lacks durable attentional context.
 - World model: `0.40` — durable evidence-aware state graph with grounding and contradiction handling.
-- Perception: `0.40` — normalized observations now pass through attention, semantic schema validation and grounding, but automatic extraction and live sensory adapters are not yet integrated.
+- Perception: `0.40` — normalized observations pass through attention and schema-constrained semantics, but automatic extraction and live sensory adapters are not yet integrated.
 
 The scores are evidence labels, not claims of human-level capability. They should only move when tests or observable behavior justify the change.
 
 ## Next scientific direction
 
-The next high-leverage step is an isolated semantic extraction provider that proposes frames into the new verifier, beginning with deterministic structured device/browser/file inputs. After extraction is reliable, Vayu should add a critic/verifier stage that can compare proposed meaning against source evidence and the existing World Model before durable belief updates. Live microphone/camera integration should remain downstream of these cognitive safety boundaries.
+The next high-leverage step is to connect this critic contract into a deterministic semantic extraction pipeline, then generalize the same adversarial pattern to planner output: proposal -> critic -> verifier -> simulation -> approval queue. A deterministic extractor should come before an LLM-backed extractor so failure modes are measurable. Live microphone/camera integration should remain downstream of these cognitive trust boundaries.
 
 ## Long-term direction
 
