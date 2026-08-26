@@ -92,10 +92,10 @@ def baseline_signals() -> list[CapabilitySignal]:
     return [
         CapabilitySignal(CognitiveDomain.SAFETY, "human approval gate", 0.88, "time-bounded approval lifecycle and fail-closed execution"),
         CapabilitySignal(CognitiveDomain.MEMORY, "durable memory", 0.55, "SQLite-backed persistence exists but consolidation/semantic recall are limited"),
-        CapabilitySignal(CognitiveDomain.REASONING, "planner", 0.48, "structured local/Ollama planning exists but critic and verification loops are limited"),
+        CapabilitySignal(CognitiveDomain.REASONING, "planner and semantic critic", 0.50, "structured planning now has an independent semantic critic for source/world-context verification, but broad plan critique and simulation remain limited"),
         CapabilitySignal(CognitiveDomain.EXECUTIVE, "goal control", 0.42, "action orchestration exists but hierarchical goals and long-horizon planning are limited"),
         CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.42, "bounded deterministic salience ranking receives normalized perception evidence; durable attentional context is still pending"),
-        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware grounded state graph", 0.40, "durable temporal facts accept attention-gated perception evidence with provenance and confidence caps; semantic frames are now schema-validated before grounding"),
+        CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware grounded state graph", 0.40, "durable temporal facts accept attention-gated perception evidence with provenance and confidence caps; semantic frames are schema-validated before grounding"),
         CapabilitySignal(CognitiveDomain.SKILLS, "skill registry", 0.52, "explicit skills exist without learned success/latency scoring"),
         CapabilitySignal(CognitiveDomain.PERCEPTION, "bounded sensory semantics", 0.40, "selected observations can be mapped through allow-listed semantic schemas with evidence anchoring, confidence caps and abstention; live adapters and automatic extraction remain absent"),
     ]
