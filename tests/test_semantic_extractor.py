@@ -4,7 +4,7 @@ import pytest
 
 from app.attention import AttentionController
 from app.critic import CriticDisposition, SemanticCritic
-from app.perception import PerceptionModality, PerceptionObservation
+from app.perception import PerceptionGateway, PerceptionModality, PerceptionObservation
 from app.semantic_extractor import DeterministicSemanticExtractor
 from app.semantics import SemanticUnderstandingBoundary
 
@@ -31,15 +31,9 @@ def observation(
 
 def attention_for(obs: PerceptionObservation):
     controller = AttentionController()
-    stimulus = controller.select(
-        [
-            __import__("app.perception", fromlist=["PerceptionGateway"])
-            .PerceptionGateway(controller)
-            .normalize([obs])[0]
-        ],
-        limit=1,
-    )[0]
-    return stimulus
+    gateway = PerceptionGateway(controller)
+    stimulus = gateway.normalize([obs])[0]
+    return controller.select([stimulus], limit=1)[0]
 
 
 def test_extracts_supported_device_status_without_boosting_confidence():
