@@ -38,6 +38,12 @@ Key constraints include bounded batches, validated scores, duplicate rejection, 
 
 `app/grounding.py` then connects attended evidence to the durable World Model. Grounding binds observation identity to the attention decision, applies a salience threshold, caps confidence by source evidence and preserves modality/source provenance. Raw perception therefore cannot write arbitrary durable beliefs directly.
 
+## Deterministic semantic extractor
+
+`app/semantic_extractor.py` provides a known-precision baseline before probabilistic extraction is introduced. It currently recognizes only exact, complete sentence shapes for device service status, browser page state and file lifecycle evidence. It rejects extra or ambiguous text, unsupported modalities, duplicate IDs and oversized batches.
+
+The extractor copies source confidence rather than increasing it and produces only a `SemanticFrame`. That frame still has to pass the semantic boundary and independent critic. This gives future LLM-backed extraction a measurable contract to outperform without weakening trust boundaries.
+
 ## Semantic understanding boundary
 
 `app/semantics.py` adds a cognition-only semantic verification stage before grounding. A provider may propose a `SemanticFrame`, but Vayu accepts it only when it passes an explicit versioned schema.
@@ -59,7 +65,7 @@ The semantic boundary requires:
 - bounded subject/evidence fields, bounded batches and duplicate rejection;
 - consistent object relationship shape when an object entity is proposed.
 
-Failure produces abstention rather than a guessed fact. The boundary has no model, network, planner, executor, persistence, action-store, permission or approval authority. Future deterministic or LLM-backed extractors must feed this boundary rather than writing directly to the World Model.
+Failure produces abstention rather than a guessed fact. The boundary has no model, network, planner, executor, persistence, action-store, permission or approval authority. Future LLM-backed extractors must feed this boundary rather than writing directly to the World Model.
 
 ## Critic / verifier subsystem
 
@@ -86,17 +92,19 @@ The critic is cognition-only and has no persistence, model, network, planner, ex
 - Safety: `0.88` — time-bounded approval lifecycle and fail-closed execution.
 - Memory: `0.55` — durable SQLite memory exists; consolidation and semantic recall remain limited.
 - Skills: `0.52` — explicit registry exists; learned reliability/latency/cost scoring is absent.
-- Reasoning: `0.50` — structured planning now has an independent semantic critic, but general plan critique, causal simulation and multi-hypothesis reasoning remain limited.
+- Reasoning: `0.50` — structured planning has an independent semantic critic, but general plan critique, causal simulation and multi-hypothesis reasoning remain limited.
+- Perception: `0.44` — exact deterministic extraction now covers narrow device/browser/file observations before semantic validation and critique; live adapters and general extraction are absent.
 - Executive: `0.42` — orchestration exists; hierarchical goals and long-horizon control remain limited.
 - Attention: `0.42` — bounded salience control consumes normalized perception but lacks durable attentional context.
 - World model: `0.40` — durable evidence-aware state graph with grounding and contradiction handling.
-- Perception: `0.40` — normalized observations pass through attention and schema-constrained semantics, but automatic extraction and live sensory adapters are not yet integrated.
 
 The scores are evidence labels, not claims of human-level capability. They should only move when tests or observable behavior justify the change.
 
 ## Next scientific direction
 
-The next high-leverage step is to connect this critic contract into a deterministic semantic extraction pipeline, then generalize the same adversarial pattern to planner output: proposal -> critic -> verifier -> simulation -> approval queue. A deterministic extractor should come before an LLM-backed extractor so failure modes are measurable. Live microphone/camera integration should remain downstream of these cognitive trust boundaries.
+Generalize the adversarial verification pattern from semantic understanding to planning: `Planner -> Plan Critic -> Simulation -> Approval Queue`. The first planner critic should remain cognition-only and check unsupported tool assumptions, missing preconditions, irreversible-risk indicators, uncertainty and internal inconsistencies before a proposed action can reach approval.
+
+LLM-backed semantic extraction can follow the deterministic baseline, but it must use the same schema boundary and critic rather than gaining direct World Model access. Live microphone/camera integration should remain downstream of these cognitive trust boundaries.
 
 ## Long-term direction
 
