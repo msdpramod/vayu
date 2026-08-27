@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.28
+
+- Started the next daily Vayu cognitive development version.
+- Added a deterministic semantic extractor for exact device service-status, browser page-state, and file lifecycle observations.
+- Required complete-string matches with bounded identifiers; ambiguous or extra text causes abstention rather than fuzzy interpretation.
+- Preserved source confidence without extractor-side boosting and kept output proposal-only as `SemanticFrame` values.
+- Added bounded batch processing and duplicate observation rejection.
+- Added end-to-end regression coverage through `SemanticUnderstandingBoundary -> SemanticCritic`, including low-confidence rejection after deterministic extraction.
+- Raised perception evidence conservatively from 0.40 to 0.44; no claim of general natural-language understanding, live sensor integration, or LLM extraction is made.
+- Preserved all execution safety boundaries; the extractor has no model, network, persistence, planner, permission, approval, executor, action-store, or side-effect authority.
+- Identified the next target as a cognition-only plan critic feeding a future `Planner -> Critic -> Simulation -> Approval Queue` path.
+
 ## v2026.08.27
 
 - Started the next daily Vayu cognitive development version.
