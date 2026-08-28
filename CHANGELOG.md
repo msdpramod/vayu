@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.29
+
+- Started the next daily Vayu cognitive development version.
+- Added a cognition-only deterministic plan critic between planner validation and the human approval queue.
+- Added explicit `verified`, `needs_revision`, and `blocked` dispositions; only verified plans can be persisted as pending proposals.
+- Blocked planner claims that an external side effect already happened and explicit attempts to bypass approval/safety boundaries.
+- Added revision feedback for unresolved empty/null payload fields and explicit uncertainty such as guessed recipients or dates.
+- Kept existing tool allow-lists, payload policy, mandatory confirmation, approval expiry, idempotency, and executor isolation unchanged.
+- Added regression coverage proving blocked/revision plans are never persisted and verified plans still enter `pending_approval` only.
+- Raised reasoning evidence conservatively from 0.50 to 0.54; no causal simulation, multi-step plan verification, or general metacognition is claimed yet.
+- Identified bounded pre-execution simulation as the next high-leverage reasoning target, feeding `Planner -> Critic -> Simulation -> Approval Queue`.
+
 ## v2026.08.28
 
 - Started the next daily Vayu cognitive development version.
