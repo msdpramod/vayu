@@ -10,6 +10,7 @@ import httpx
 
 from app.actions import PENDING, ProposedActionStore, actions
 from app.payload_policy import validate_planner_payload
+from app.plan_critic import PlanCritic, PlanCriticDisposition, plan_critic
 
 
 PROPOSABLE_TOOLS = frozenset({
@@ -141,17 +142,19 @@ def get_planner_provider() -> PlannerProvider:
 
 
 class PlannerService:
-    """Validates planner output and stages, but never approves or executes, actions."""
+    """Validates and critiques plans before staging; it never approves or executes."""
 
     def __init__(
         self,
         store: ProposedActionStore,
         provider: PlannerProvider | None = None,
         proposable_tools: frozenset[str] = PROPOSABLE_TOOLS,
+        critic: PlanCritic | None = None,
     ):
         self.store = store
         self.provider = provider or get_planner_provider()
         self.proposable_tools = proposable_tools
+        self.critic = critic or plan_critic
 
     def _validate_action(self, action: PlannedAction) -> None:
         if action.tool not in self.proposable_tools:
@@ -168,12 +171,26 @@ class PlannerService:
         response: dict[str, Any] = {
             "provider": decision.provider,
             "reply": decision.reply,
+            "plan_critique": None,
             "proposed_action": None,
         }
         if decision.action is None:
             return response
 
         self._validate_action(decision.action)
+        critique = self.critic.review(
+            tool=decision.action.tool,
+            description=decision.action.description,
+            payload=decision.action.payload,
+            reply=decision.reply,
+        )
+        response["plan_critique"] = {
+            "disposition": critique.disposition.value,
+            "findings": list(critique.findings),
+        }
+        if critique.disposition is not PlanCriticDisposition.VERIFIED:
+            return response
+
         proposed = self.store.propose(
             tool=decision.action.tool,
             description=decision.action.description,
