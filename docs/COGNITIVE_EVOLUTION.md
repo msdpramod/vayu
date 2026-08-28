@@ -67,7 +67,7 @@ The semantic boundary requires:
 
 Failure produces abstention rather than a guessed fact. The boundary has no model, network, planner, executor, persistence, action-store, permission or approval authority. Future LLM-backed extractors must feed this boundary rather than writing directly to the World Model.
 
-## Critic / verifier subsystem
+## Semantic critic / verifier
 
 `app/critic.py` adds an independent second-pass critic after semantic admission and before durable grounding. Passing a schema is therefore no longer sufficient by itself: the claim must also survive source-confidence and existing-world-context checks.
 
@@ -81,7 +81,25 @@ The critic:
 - returns an explicit `conflict` disposition when competing beliefs are close enough that silent overwrite would be unsafe;
 - never boosts semantic confidence merely because a matching current fact exists.
 
-The critic is cognition-only and has no persistence, model, network, planner, executor, permission, approval, or action authority. A conflict is information for later reasoning, not permission to act.
+The semantic critic is cognition-only and has no persistence, model, network, planner, executor, permission, approval, or action authority. A conflict is information for later reasoning, not permission to act.
+
+## Planner critic / metacognition
+
+`app/plan_critic.py` adds a deterministic second-pass reasoning boundary after the planner's structural/tool/payload validation and before a proposal can enter the durable human approval queue.
+
+The planner critic returns one of three dispositions:
+
+- `verified` — no deterministic objection was found and the plan may continue to normal pending approval;
+- `needs_revision` — unresolved payload fields or explicit uncertainty remain, so nothing is persisted;
+- `blocked` — the planner claims an external action already happened or expresses an intent to bypass safety/approval, so nothing is persisted.
+
+The critic also bounds description/reply sizes and top-level payload shape. It does not rewrite plans, approve actions, persist state, call a model, access the network, invoke tools, or execute side effects. A verified critique is not execution permission; it only means the proposal may reach the existing `pending_approval` state.
+
+This establishes the first planning metacognition loop:
+
+`Planner -> structural/payload validation -> Plan Critic -> human approval queue`
+
+The next reasoning layer should be a bounded simulator that predicts preconditions, expected state transitions, failure modes and rollback requirements without executing the proposed action.
 
 ## World Model
 
@@ -91,9 +109,9 @@ The critic is cognition-only and has no persistence, model, network, planner, ex
 
 - Safety: `0.88` — time-bounded approval lifecycle and fail-closed execution.
 - Memory: `0.55` — durable SQLite memory exists; consolidation and semantic recall remain limited.
+- Reasoning: `0.54` — structured planning now has an independent deterministic plan critic before staging, while causal simulation, multi-step verification and broader metacognition remain limited.
 - Skills: `0.52` — explicit registry exists; learned reliability/latency/cost scoring is absent.
-- Reasoning: `0.50` — structured planning has an independent semantic critic, but general plan critique, causal simulation and multi-hypothesis reasoning remain limited.
-- Perception: `0.44` — exact deterministic extraction now covers narrow device/browser/file observations before semantic validation and critique; live adapters and general extraction are absent.
+- Perception: `0.44` — exact deterministic extraction covers narrow device/browser/file observations before semantic validation and critique; live adapters and general extraction are absent.
 - Executive: `0.42` — orchestration exists; hierarchical goals and long-horizon control remain limited.
 - Attention: `0.42` — bounded salience control consumes normalized perception but lacks durable attentional context.
 - World model: `0.40` — durable evidence-aware state graph with grounding and contradiction handling.
@@ -102,7 +120,9 @@ The scores are evidence labels, not claims of human-level capability. They shoul
 
 ## Next scientific direction
 
-Generalize the adversarial verification pattern from semantic understanding to planning: `Planner -> Plan Critic -> Simulation -> Approval Queue`. The first planner critic should remain cognition-only and check unsupported tool assumptions, missing preconditions, irreversible-risk indicators, uncertainty and internal inconsistencies before a proposed action can reach approval.
+Add bounded pre-execution simulation after the plan critic and before human approval: `Planner -> Plan Critic -> Simulation -> Approval Queue`.
+
+The first simulator should remain cognition-only and deterministic. It should model expected state changes, prerequisites, likely failure modes, reversibility/rollback requirements and uncertainty for allow-listed tools without calling the tool itself. Simulation failure or missing rollback information should prevent the plan from reaching approval rather than silently degrading safety.
 
 LLM-backed semantic extraction can follow the deterministic baseline, but it must use the same schema boundary and critic rather than gaining direct World Model access. Live microphone/camera integration should remain downstream of these cognitive trust boundaries.
 
