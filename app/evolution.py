@@ -92,7 +92,7 @@ def baseline_signals() -> list[CapabilitySignal]:
     return [
         CapabilitySignal(CognitiveDomain.SAFETY, "human approval gate", 0.88, "time-bounded approval lifecycle and fail-closed execution"),
         CapabilitySignal(CognitiveDomain.MEMORY, "durable memory", 0.55, "SQLite-backed persistence exists but consolidation/semantic recall are limited"),
-        CapabilitySignal(CognitiveDomain.REASONING, "planner with independent semantic and plan critics", 0.54, "structured planning is now challenged by a deterministic second-pass critic before staging; causal simulation and broad multi-step plan verification remain limited"),
+        CapabilitySignal(CognitiveDomain.REASONING, "planner critique plus bounded consequence simulation", 0.58, "structured plans are independently critiqued and then deterministically simulated for prerequisites, expected state changes, failure modes and rollback properties before staging; causal multi-step simulation remains limited"),
         CapabilitySignal(CognitiveDomain.EXECUTIVE, "goal control", 0.42, "action orchestration exists but hierarchical goals and long-horizon planning are limited"),
         CapabilitySignal(CognitiveDomain.ATTENTION, "salience controller", 0.42, "bounded deterministic salience ranking receives normalized perception evidence; durable attentional context is still pending"),
         CapabilitySignal(CognitiveDomain.WORLD_MODEL, "evidence-aware grounded state graph", 0.40, "durable temporal facts accept attention-gated perception evidence with provenance and confidence caps; semantic frames are schema-validated before grounding"),

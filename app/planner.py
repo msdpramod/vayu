@@ -11,6 +11,7 @@ import httpx
 from app.actions import PENDING, ProposedActionStore, actions
 from app.payload_policy import validate_planner_payload
 from app.plan_critic import PlanCritic, PlanCriticDisposition, plan_critic
+from app.simulator import CognitiveSimulator, SimulationDisposition, simulator
 
 
 PROPOSABLE_TOOLS = frozenset({
@@ -51,7 +52,7 @@ class LocalRulePlanner(PlannerProvider):
         if not text.lower().startswith("propose ") or ":" not in text:
             return PlannerDecision(
                 reply=(
-                    "No external planner is configured. I can still stage an explicit "
+                    "No external planner is configured. I can still analyze an explicit "
                     "proposal using 'propose <tool>: <description>'."
                 ),
                 provider="local-rule",
@@ -142,7 +143,7 @@ def get_planner_provider() -> PlannerProvider:
 
 
 class PlannerService:
-    """Validates and critiques plans before staging; it never approves or executes."""
+    """Validates, critiques and simulates plans before staging; never approves or executes."""
 
     def __init__(
         self,
@@ -150,11 +151,13 @@ class PlannerService:
         provider: PlannerProvider | None = None,
         proposable_tools: frozenset[str] = PROPOSABLE_TOOLS,
         critic: PlanCritic | None = None,
+        cognitive_simulator: CognitiveSimulator | None = None,
     ):
         self.store = store
         self.provider = provider or get_planner_provider()
         self.proposable_tools = proposable_tools
         self.critic = critic or plan_critic
+        self.simulator = cognitive_simulator or simulator
 
     def _validate_action(self, action: PlannedAction) -> None:
         if action.tool not in self.proposable_tools:
@@ -167,11 +170,24 @@ class PlannerService:
             raise ValueError("Planner action description is too long.")
         validate_planner_payload(action.payload)
 
+    @staticmethod
+    def _simulation_dict(result) -> dict[str, Any]:
+        return {
+            "disposition": result.disposition.value,
+            "preconditions": list(result.preconditions),
+            "expected_changes": list(result.expected_changes),
+            "failure_modes": list(result.failure_modes),
+            "rollback": result.rollback,
+            "reversible": result.reversible,
+            "findings": list(result.findings),
+        }
+
     def stage_decision(self, decision: PlannerDecision) -> dict[str, Any]:
         response: dict[str, Any] = {
             "provider": decision.provider,
             "reply": decision.reply,
             "plan_critique": None,
+            "simulation": None,
             "proposed_action": None,
         }
         if decision.action is None:
@@ -189,6 +205,14 @@ class PlannerService:
             "findings": list(critique.findings),
         }
         if critique.disposition is not PlanCriticDisposition.VERIFIED:
+            return response
+
+        simulation = self.simulator.simulate(
+            tool=decision.action.tool,
+            payload=decision.action.payload,
+        )
+        response["simulation"] = self._simulation_dict(simulation)
+        if simulation.disposition is not SimulationDisposition.READY:
             return response
 
         proposed = self.store.propose(

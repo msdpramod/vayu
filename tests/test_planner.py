@@ -41,6 +41,9 @@ def test_planner_stages_allowlisted_action_without_execution(tmp_path):
 
     result = service.plan("send my update")
 
+    assert result["plan_critique"]["disposition"] == "verified"
+    assert result["simulation"]["disposition"] == "ready"
+    assert result["simulation"]["failure_modes"]
     assert result["proposed_action"]["status"] == PENDING
     assert result["proposed_action"]["tool"] == "email.send"
     with pytest.raises(PermissionError):
@@ -85,7 +88,7 @@ def test_planner_cannot_downgrade_confirmation_requirement(tmp_path):
     assert store.list() == []
 
 
-def test_local_planner_requires_explicit_allowlisted_proposal_syntax(tmp_path):
+def test_local_planner_analyzes_but_does_not_stage_incomplete_proposal(tmp_path):
     store = ProposedActionStore(str(tmp_path / "planner.db"))
     service = PlannerService(store)
 
@@ -93,8 +96,11 @@ def test_local_planner_requires_explicit_allowlisted_proposal_syntax(tmp_path):
     assert no_action["proposed_action"] is None
 
     proposed = service.plan("propose email.send: Send the reviewed launch update")
-    assert proposed["proposed_action"]["status"] == PENDING
-    assert proposed["proposed_action"]["risk"] == "confirm"
+    assert proposed["plan_critique"]["disposition"] == "verified"
+    assert proposed["simulation"]["disposition"] == "needs_revision"
+    assert "required field 'to' is unresolved" in proposed["simulation"]["findings"]
+    assert proposed["proposed_action"] is None
+    assert store.list() == []
 
 
 def test_ollama_planner_parses_strict_json_without_execution(monkeypatch, tmp_path):
@@ -122,6 +128,7 @@ def test_ollama_planner_parses_strict_json_without_execution(monkeypatch, tmp_pa
     result = service.plan("notify me when the build is done")
 
     assert result["provider"] == "ollama"
+    assert result["simulation"]["disposition"] == "ready"
     assert result["proposed_action"]["status"] == PENDING
     assert result["proposed_action"]["tool"] == "notification.send"
 
@@ -167,7 +174,7 @@ def test_ollama_transport_failure_creates_no_action(monkeypatch, tmp_path):
     assert store.list() == []
 
 
-def test_plan_api_creates_pending_proposal_only():
+def test_plan_api_returns_simulation_and_does_not_stage_incomplete_local_proposal():
     client = TestClient(app)
     actions.clear()
     try:
@@ -177,11 +184,9 @@ def test_plan_api_creates_pending_proposal_only():
         )
         assert response.status_code == 200
         body = response.json()
-        action = body["proposed_action"]
-        assert action["status"] == PENDING
-        assert action["tool"] == "notification.send"
-
-        execute = client.post(f"/actions/{action['id']}/execute")
-        assert execute.status_code == 409
+        assert body["plan_critique"]["disposition"] == "verified"
+        assert body["simulation"]["disposition"] == "needs_revision"
+        assert body["proposed_action"] is None
+        assert actions.list() == []
     finally:
         actions.clear()
