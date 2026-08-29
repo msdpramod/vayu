@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.30
+
+- Started the next daily Vayu cognitive development version.
+- Added a cognition-only deterministic simulator after the plan critic and before the human approval queue.
+- Added explicit simulation of preconditions, expected state changes, failure modes, reversibility and rollback/compensation for `notification.send`, `email.send`, and `calendar.create`.
+- Required simulation disposition `ready` before any planner-created action can be persisted as `pending_approval`; incomplete or unsupported simulations fail closed.
+- Changed the payload-free local planner fallback to analysis-only for incomplete external actions rather than staging them.
+- Preserved planner/tool allow-lists, payload policy, human approval, approval expiry, execution idempotency, and atomic execution ownership.
+- Added regression coverage for successful simulation, unresolved required fields, unknown-tool blocking, oversized text, Ollama integration, and API/local fallback behavior.
+- Raised reasoning evidence conservatively from 0.54 to 0.58; no multi-step causal simulation, probabilistic forecasting, or world-model counterfactual reasoning is claimed yet.
+- Identified read-only World Model precondition checking and counterfactual state deltas as the next high-leverage simulation target.
+
 ## v2026.08.29
 
 - Started the next daily Vayu cognitive development version.
