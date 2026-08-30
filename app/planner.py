@@ -12,6 +12,7 @@ from app.actions import PENDING, ProposedActionStore, actions
 from app.payload_policy import validate_planner_payload
 from app.plan_critic import PlanCritic, PlanCriticDisposition, plan_critic
 from app.simulator import CognitiveSimulator, SimulationDisposition, simulator
+from app.world_model import WorldModel
 
 
 PROPOSABLE_TOOLS = frozenset({
@@ -152,12 +153,14 @@ class PlannerService:
         proposable_tools: frozenset[str] = PROPOSABLE_TOOLS,
         critic: PlanCritic | None = None,
         cognitive_simulator: CognitiveSimulator | None = None,
+        world_model: WorldModel | None = None,
     ):
         self.store = store
         self.provider = provider or get_planner_provider()
         self.proposable_tools = proposable_tools
         self.critic = critic or plan_critic
         self.simulator = cognitive_simulator or simulator
+        self.world_model = world_model
 
     def _validate_action(self, action: PlannedAction) -> None:
         if action.tool not in self.proposable_tools:
@@ -180,6 +183,8 @@ class PlannerService:
             "rollback": result.rollback,
             "reversible": result.reversible,
             "findings": list(result.findings),
+            "world_findings": list(result.world_findings),
+            "snapshot_generated_at": result.snapshot_generated_at,
         }
 
     def stage_decision(self, decision: PlannerDecision) -> dict[str, Any]:
@@ -207,9 +212,15 @@ class PlannerService:
         if critique.disposition is not PlanCriticDisposition.VERIFIED:
             return response
 
+        world_snapshot = None
+        if self.world_model is not None:
+            world_snapshot = self.world_model.snapshot(
+                self.simulator.context_subjects(decision.action.tool)
+            )
         simulation = self.simulator.simulate(
             tool=decision.action.tool,
             payload=decision.action.payload,
+            world_snapshot=world_snapshot,
         )
         response["simulation"] = self._simulation_dict(simulation)
         if simulation.disposition is not SimulationDisposition.READY:
@@ -233,4 +244,4 @@ class PlannerService:
         return self.stage_decision(self.provider.plan(prompt))
 
 
-planner = PlannerService(actions)
+planner = PlannerService(actions, world_model=WorldModel())

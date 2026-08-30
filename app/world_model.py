@@ -15,6 +15,7 @@ MAX_PREDICATE = 96
 MAX_VALUE = 2048
 MAX_PROVENANCE = 256
 MAX_QUERY_LIMIT = 100
+MAX_SNAPSHOT_SUBJECTS = 16
 
 
 @dataclass(frozen=True)
@@ -35,6 +36,20 @@ class WorldFact:
     @property
     def is_current(self) -> bool:
         return self.valid_to is None and self.superseded_by is None
+
+
+@dataclass(frozen=True)
+class WorldSnapshot:
+    """Immutable, bounded view of current world facts for cognition-only consumers."""
+
+    generated_at: str
+    facts: tuple[WorldFact, ...]
+
+    def current(self, subject_id: str, predicate: str | None = None) -> tuple[WorldFact, ...]:
+        return tuple(
+            fact for fact in self.facts
+            if fact.subject_id == subject_id and (predicate is None or fact.predicate == predicate)
+        )
 
 
 class WorldModel:
@@ -189,24 +204,14 @@ class WorldModel:
                     return self._get(connection, current["id"])
 
                 if confidence <= current["confidence"]:
-                    # Lower/equal-confidence contradiction is retained as historical evidence,
-                    # but does not displace the current belief.
                     cursor = connection.execute(
                         """INSERT INTO world_facts(
                             subject_id, subject_type, predicate, value, object_id,
                             confidence, provenance, observed_at, valid_from, valid_to
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                         (
-                            subject_id,
-                            subject_type,
-                            predicate,
-                            value,
-                            object_id,
-                            confidence,
-                            provenance,
-                            observed,
-                            observed,
-                            observed,
+                            subject_id, subject_type, predicate, value, object_id,
+                            confidence, provenance, observed, observed, observed,
                         ),
                     )
                     return self._get(connection, cursor.lastrowid)
@@ -217,15 +222,8 @@ class WorldModel:
                     confidence, provenance, observed_at, valid_from
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                 (
-                    subject_id,
-                    subject_type,
-                    predicate,
-                    value,
-                    object_id,
-                    confidence,
-                    provenance,
-                    observed,
-                    observed,
+                    subject_id, subject_type, predicate, value, object_id,
+                    confidence, provenance, observed, observed,
                 ),
             )
             new_id = int(cursor.lastrowid)
@@ -259,6 +257,30 @@ class WorldModel:
         with self._connect() as connection:
             rows = connection.execute(query, params).fetchall()
         return [WorldFact(**dict(row)) for row in rows]
+
+    def snapshot(self, subject_ids: Iterable[str], limit: int = 100) -> WorldSnapshot:
+        """Return a bounded immutable snapshot of current facts for selected subjects only."""
+        normalized = tuple(dict.fromkeys(
+            self._bounded(subject_id, "subject_id", MAX_ENTITY_ID) for subject_id in subject_ids
+        ))
+        if len(normalized) > MAX_SNAPSHOT_SUBJECTS:
+            raise ValueError(f"world snapshot exceeds {MAX_SNAPSHOT_SUBJECTS} subjects")
+        if not normalized:
+            return WorldSnapshot(datetime.now(timezone.utc).isoformat(), ())
+
+        safe_limit = max(1, min(int(limit), MAX_QUERY_LIMIT))
+        placeholders = ",".join("?" for _ in normalized)
+        query = f"""SELECT * FROM world_facts
+                    WHERE subject_id IN ({placeholders})
+                      AND valid_to IS NULL AND superseded_by IS NULL
+                    ORDER BY id DESC LIMIT ?"""
+        params: list[object] = [*normalized, safe_limit]
+        with self._connect() as connection:
+            rows = connection.execute(query, params).fetchall()
+        return WorldSnapshot(
+            generated_at=datetime.now(timezone.utc).isoformat(),
+            facts=tuple(WorldFact(**dict(row)) for row in rows),
+        )
 
     def history(self, subject_id: str, predicate: str, limit: int = 20) -> list[WorldFact]:
         subject_id = self._bounded(subject_id, "subject_id", MAX_ENTITY_ID)
