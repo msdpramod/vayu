@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.world_model import WorldModel
+from app.world_model import MAX_SNAPSHOT_SUBJECTS, WorldModel
 
 
 def test_world_model_persists_current_fact_and_relationship(tmp_path):
@@ -112,54 +112,63 @@ def test_world_model_rejects_invalid_or_ambiguous_evidence(tmp_path):
 
     with pytest.raises(ValueError):
         model.observe(
-            subject_id="x",
-            subject_type="device",
-            predicate="status",
-            value="ok",
-            confidence=1.1,
-            provenance="sensor",
+            subject_id="x", subject_type="device", predicate="status", value="ok",
+            confidence=1.1, provenance="sensor",
         )
 
     with pytest.raises(ValueError):
         model.observe(
-            subject_id="x",
-            subject_type="device",
-            predicate="linked_to",
-            value="y",
-            object_id="y",
-            confidence=0.8,
-            provenance="sensor",
+            subject_id="x", subject_type="device", predicate="linked_to", value="y",
+            object_id="y", confidence=0.8, provenance="sensor",
         )
 
     with pytest.raises(ValueError):
         model.observe(
-            subject_id="x",
-            subject_type="device",
-            predicate="status",
-            value="ok",
-            confidence=0.8,
-            provenance="sensor",
-            observed_at="2026-08-24T01:00:00",
+            subject_id="x", subject_type="device", predicate="status", value="ok",
+            confidence=0.8, provenance="sensor", observed_at="2026-08-24T01:00:00",
         )
 
 
 def test_entity_type_is_stable_for_existing_identity(tmp_path):
     model = WorldModel(str(tmp_path / "vayu.db"))
     model.observe(
-        subject_id="vayu",
-        subject_type="assistant",
-        predicate="state",
-        value="ready",
-        confidence=0.9,
-        provenance="self",
+        subject_id="vayu", subject_type="assistant", predicate="state", value="ready",
+        confidence=0.9, provenance="self",
     )
 
     with pytest.raises(ValueError):
         model.observe(
-            subject_id="vayu",
-            subject_type="device",
-            predicate="state",
-            value="ready",
-            confidence=0.9,
-            provenance="self",
+            subject_id="vayu", subject_type="device", predicate="state", value="ready",
+            confidence=0.9, provenance="self",
         )
+
+
+def test_snapshot_contains_only_current_selected_subjects(tmp_path):
+    model = WorldModel(str(tmp_path / "vayu.db"))
+    model.observe(
+        subject_id="adapter:email", subject_type="adapter", predicate="status", value="online",
+        confidence=0.6, provenance="old-probe",
+    )
+    model.observe(
+        subject_id="adapter:email", subject_type="adapter", predicate="status", value="offline",
+        confidence=0.95, provenance="new-probe",
+    )
+    model.observe(
+        subject_id="adapter:calendar", subject_type="adapter", predicate="status", value="online",
+        confidence=0.9, provenance="health",
+    )
+
+    snapshot = model.snapshot(["adapter:email"])
+
+    assert len(snapshot.facts) == 1
+    assert snapshot.facts[0].subject_id == "adapter:email"
+    assert snapshot.facts[0].value == "offline"
+    assert snapshot.current("adapter:email", "status")[0].provenance == "new-probe"
+    assert snapshot.current("adapter:calendar") == ()
+
+
+def test_snapshot_subject_count_is_bounded(tmp_path):
+    model = WorldModel(str(tmp_path / "vayu.db"))
+
+    with pytest.raises(ValueError, match="world snapshot exceeds"):
+        model.snapshot([f"subject:{index}" for index in range(MAX_SNAPSHOT_SUBJECTS + 1)])
