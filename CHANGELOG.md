@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.08.31
+
+- Started the next daily Vayu cognitive development version.
+- Added immutable bounded `WorldSnapshot` views so cognition can inspect selected current facts without receiving World Model mutation authority.
+- Connected the planner simulator to relevant adapter world-state subjects for email, calendar and notification proposals.
+- Added high-confidence current-world precondition conflict detection: known `offline`, `unavailable`, `disabled`, or `down` adapter state prevents proposal staging and returns `needs_revision`.
+- Preserved uncertainty: lower-confidence negative world evidence is surfaced in simulation findings but is not promoted into a hard blocking fact.
+- Added simulation snapshot timestamps/world findings for observability while preserving planner/tool allow-lists, payload policy, human approval, approval expiry, idempotency and atomic execution ownership.
+- Added regression coverage for bounded current-only snapshots, known-world conflicts, low-confidence evidence, planner-level non-persistence on conflict, and read-only non-conflicting planning.
+- Raised reasoning evidence conservatively from 0.58 to 0.61 and world-model evidence from 0.40 to 0.43; no multi-step causal prediction or probabilistic world simulation is claimed.
+- Identified ephemeral counterfactual state deltas and invariant checking as the next high-leverage prospective-reasoning target.
+
 ## v2026.08.30
 
 - Started the next daily Vayu cognitive development version.
