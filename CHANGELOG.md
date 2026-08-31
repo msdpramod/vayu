@@ -1,5 +1,17 @@
 # Changelog
 
+## v2026.09.01
+
+- Started the next daily Vayu cognitive development version.
+- Added an immutable cognition-only counterfactual world layer after current-world simulation and before human approval.
+- Projected each ready allow-listed external action into bounded `success`, `failure`, and `ambiguous` future-state deltas instead of assuming the intended effect occurs.
+- Marked ambiguous external outcomes as requiring reconciliation before retry and explicitly avoided inventing outcome probabilities.
+- Kept predicted facts ephemeral and structurally separate from durable `WorldModel` observations so imagined futures cannot contaminate current beliefs.
+- Required a `ready` counterfactual result before planner-created actions can enter `pending_approval` while preserving all existing execution safety gates.
+- Added regression coverage for bounded future branches, ambiguous-outcome reconciliation, no World Model mutation, fail-closed base-simulation handling, uncertainty preservation, and planner integration.
+- Raised reasoning evidence conservatively from 0.61 to 0.64 and world-model evidence from 0.43 to 0.45; no multi-step causal search, learned transition model, or alternative-plan optimization is claimed.
+- Identified bounded alternative-plan comparison and counterfactual invariant analysis as the next prospective-reasoning target.
+
 ## v2026.08.31
 
 - Started the next daily Vayu cognitive development version.
