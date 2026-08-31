@@ -9,6 +9,11 @@ from typing import Any
 import httpx
 
 from app.actions import PENDING, ProposedActionStore, actions
+from app.counterfactual import (
+    CounterfactualDisposition,
+    CounterfactualSimulator,
+    counterfactual_simulator,
+)
 from app.payload_policy import validate_planner_payload
 from app.plan_critic import PlanCritic, PlanCriticDisposition, plan_critic
 from app.simulator import CognitiveSimulator, SimulationDisposition, simulator
@@ -153,6 +158,7 @@ class PlannerService:
         proposable_tools: frozenset[str] = PROPOSABLE_TOOLS,
         critic: PlanCritic | None = None,
         cognitive_simulator: CognitiveSimulator | None = None,
+        counterfactual: CounterfactualSimulator | None = None,
         world_model: WorldModel | None = None,
     ):
         self.store = store
@@ -160,6 +166,7 @@ class PlannerService:
         self.proposable_tools = proposable_tools
         self.critic = critic or plan_critic
         self.simulator = cognitive_simulator or simulator
+        self.counterfactual = counterfactual or counterfactual_simulator
         self.world_model = world_model
 
     def _validate_action(self, action: PlannedAction) -> None:
@@ -187,12 +194,39 @@ class PlannerService:
             "snapshot_generated_at": result.snapshot_generated_at,
         }
 
+    @staticmethod
+    def _counterfactual_dict(result) -> dict[str, Any]:
+        return {
+            "disposition": result.disposition.value,
+            "branches": [
+                {
+                    "outcome": branch.outcome.value,
+                    "requires_reconciliation": branch.requires_reconciliation,
+                    "delta": [
+                        {
+                            "subject_id": fact.subject_id,
+                            "predicate": fact.predicate,
+                            "value": fact.value,
+                            "confidence": fact.confidence,
+                        }
+                        for fact in branch.delta
+                    ],
+                }
+                for branch in result.branches
+            ],
+            "invariants": list(result.invariants),
+            "assumptions": list(result.assumptions),
+            "conflicts": list(result.conflicts),
+            "base_snapshot_generated_at": result.base_snapshot_generated_at,
+        }
+
     def stage_decision(self, decision: PlannerDecision) -> dict[str, Any]:
         response: dict[str, Any] = {
             "provider": decision.provider,
             "reply": decision.reply,
             "plan_critique": None,
             "simulation": None,
+            "counterfactual": None,
             "proposed_action": None,
         }
         if decision.action is None:
@@ -224,6 +258,16 @@ class PlannerService:
         )
         response["simulation"] = self._simulation_dict(simulation)
         if simulation.disposition is not SimulationDisposition.READY:
+            return response
+
+        future = self.counterfactual.project(
+            tool=decision.action.tool,
+            payload=decision.action.payload,
+            simulation=simulation,
+            world_snapshot=world_snapshot,
+        )
+        response["counterfactual"] = self._counterfactual_dict(future)
+        if future.disposition is not CounterfactualDisposition.READY:
             return response
 
         proposed = self.store.propose(
