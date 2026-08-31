@@ -40,6 +40,7 @@ Planner
   -> structural/tool/payload validation
   -> Plan Critic
   -> World-aware Cognitive Simulation
+  -> Ephemeral Counterfactual Futures
   -> Human Approval Queue
   -> independently gated executor
 ```
@@ -56,7 +57,9 @@ Cognitive output never implies execution authority.
 
 `app/world_model.py` stores durable typed entities and temporal facts with confidence and provenance. Stronger contradictory evidence can supersede a current belief while preserving history; weaker contradictory evidence is retained without displacing the stronger current state.
 
-The World Model now also exposes `WorldSnapshot`, an immutable bounded view of current facts for selected subjects. Snapshot queries are capped to 16 subjects and the existing 100-fact query limit, and historical/superseded facts are excluded. Cognition-only consumers can therefore reason about current beliefs without receiving mutation authority.
+The World Model exposes `WorldSnapshot`, an immutable bounded view of current facts for selected subjects. Snapshot queries are capped to 16 subjects and the existing 100-fact query limit, and historical/superseded facts are excluded. Cognition-only consumers can therefore reason about current beliefs without receiving mutation authority.
+
+Counterfactual reasoning is intentionally separated from this durable state. Predicted future deltas are temporary cognitive objects and are never persisted as observations merely because Vayu simulated them.
 
 ## Planner metacognition
 
@@ -76,16 +79,28 @@ It models:
 
 Each tool maps to an explicit adapter-world subject (`adapter:email`, `adapter:calendar`, `adapter:notification`). If the current snapshot contains high-confidence (`>= 0.70`) evidence that the adapter is `offline`, `unavailable`, `disabled`, or `down`, simulation returns `needs_revision` and the proposal never reaches human approval. Lower-confidence contradictory evidence is surfaced but is not promoted into a hard fact.
 
-Simulation does not call tools, models, networks, permissions, approval systems, executors or external services, and it cannot mutate the World Model. `ready` means only that a proposal is coherent enough to enter the existing approval queue.
+Simulation does not call tools, models, networks, permissions, approval systems, executors or external services, and it cannot mutate the World Model. `ready` means only that a proposal is coherent enough for the next cognitive gate.
+
+## Ephemeral counterfactual futures
+
+`app/counterfactual.py` projects a `ready` simulation into a bounded set of mutually exclusive future-state deltas. The first version deliberately uses three branches for each allow-listed external action:
+
+- `success` — the expected external effect may have occurred;
+- `failure` — the external effect did not occur;
+- `ambiguous` — the provider outcome is unknown and reconciliation is required before retry.
+
+The branch limit is three and payloads remain bounded to 64 top-level keys. Predicted facts carry conservative confidence labels but no invented outcome probabilities; the result explicitly states that outcome probabilities are unknown.
+
+Counterfactual facts are not `WorldFact` observations. They have no persistence path and never update current durable state. A counterfactual result must be `ready` before a planner-created action may enter the existing human approval queue.
 
 ## Current evidence snapshot
 
 - Safety: `0.88` — time-bounded approval lifecycle and fail-closed execution.
-- Reasoning: `0.61` — independent plan critique plus deterministic consequence simulation constrained by bounded current-world evidence; multi-step causal counterfactual reasoning remains limited.
+- Reasoning: `0.64` — independent plan critique, current-world simulation, and bounded success/failure/ambiguous counterfactual futures; multi-step causal search and alternative-plan comparison remain limited.
 - Memory: `0.55` — durable SQLite memory exists; consolidation and semantic recall remain limited.
 - Skills: `0.52` — explicit registry exists; learned reliability/latency/cost scoring is absent.
+- World model: `0.45` — durable evidence-aware state graph plus immutable current snapshots and separate non-persistent predicted deltas; learned predictive transitions remain limited.
 - Perception: `0.44` — exact deterministic extraction covers narrow device/browser/file observations; live adapters and general extraction are absent.
-- World model: `0.43` — durable evidence-aware state graph plus bounded immutable current-state snapshots; predictive transitions remain limited.
 - Executive: `0.42` — orchestration exists; hierarchical goals and long-horizon control remain limited.
 - Attention: `0.42` — bounded salience control consumes normalized perception but lacks durable attentional context.
 
@@ -99,14 +114,14 @@ KUPPA AI remains independently runnable and human-facing: KUPPA is the heart/per
 
 ## Next scientific direction
 
-Add an **ephemeral counterfactual state delta** after current-world precondition checking:
+Add **bounded alternative-plan comparison and counterfactual invariant checking** over the same immutable current-world snapshot:
 
 ```text
 Current World Snapshot
-  + Proposed Action Effects
-  -> Temporary Predicted World
-  -> Conflict / Invariant Analysis
-  -> Approval Queue
+  + Candidate Plan A -> Counterfactual Futures A
+  + Candidate Plan B -> Counterfactual Futures B
+  -> Compare prerequisites / ambiguity / reversibility / risk / expected effects
+  -> Human review
 ```
 
-The predicted world must never be persisted as if an action actually happened. The first version should remain deterministic, bounded and explicit about assumptions. Later iterations can add multi-step causal simulation, uncertainty propagation and alternative-plan comparison while keeping action authority outside cognition.
+The comparison layer must not silently choose or execute an action. It should expose evidence, assumptions and tradeoffs while preserving uncertainty. Later iterations can add learned transition models, multi-step causal search and uncertainty propagation only after deterministic invariants remain stable.
