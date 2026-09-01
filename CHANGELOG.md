@@ -1,5 +1,19 @@
 # Changelog
 
+## v2026.09.02
+
+- Started the next daily Vayu development version.
+- Added the first platform-neutral Social Media Organ boundary with explicit LinkedIn/Instagram/Facebook/X/YouTube platform identities and adapter contracts.
+- Added explicit account-to-adapter binding plus capability and health checks before social publish proposals can be staged.
+- Routed social publishing through the existing `social.publish` consequential-action lifecycle with mandatory `confirm` approval; the organ cannot approve itself.
+- Revalidated platform, account, adapter identity, capabilities, content/media bounds, and idempotency key again at execution time before an adapter is invoked.
+- Added verified publish receipts so Vayu only reports success when a platform adapter returns a stable post ID plus verification evidence/permalink; unverified outcomes become `execution_failed`.
+- Added a deterministic no-network `MockSocialAdapter` with adapter-level idempotency for local development and CI.
+- Added KUPPA-facing high-level `connected`, `disconnected`, and `approval_required` organ events without exposing platform internals.
+- Added ADR and mandatory nested evolution documentation/indexing under `docs/evolution/YYYY/MM/`.
+- Added six social regression scenarios; PR #13 CI passed the complete suite with 151 tests.
+- No cognitive capability score was increased; real official platform adapters and durable identity/OAuth reference lifecycle are still pending.
+
 ## v2026.09.01
 
 - Started the next daily Vayu cognitive development version.
