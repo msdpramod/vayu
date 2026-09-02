@@ -43,7 +43,9 @@ After: account identity metadata survives restart. Publishing still fails closed
 
 ## Tests/checks and results
 
-Validation is performed through GitHub Actions because this execution environment cannot resolve `github.com` for an independent local clone. The feature branch adds targeted social identity regression tests and is merged only after the complete repository CI gate succeeds.
+GitHub Actions PR CI run `33691177389` validated the merge candidate with Python 3.12. The complete `python -m pytest -q` step passed: **157 passed, 1 warning in 2.05s**. The warning is an existing Starlette/AnyIO deprecation warning and is unrelated to this change.
+
+Independent local cloning was unavailable because this execution environment could not resolve `github.com`, so GitHub Actions is the authoritative regression environment for this run.
 
 ## Metrics
 
