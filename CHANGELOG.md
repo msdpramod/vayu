@@ -1,5 +1,18 @@
 # Changelog
 
+## v2026.09.03
+
+- Started the next daily Vayu development version.
+- Added durable SQLite-backed Social Media Organ account identity while keeping OAuth/access/refresh tokens, passwords, cookies, and browser sessions outside Vayu persistence.
+- Added bounded non-secret credential-provider/key references as future out-of-band credential locators; URI-shaped or serialized secret material is rejected.
+- Added explicit account revocation and monotonic binding revisions so approved social actions fail closed if identity is revoked or rebound before execution.
+- Prevented active social account bindings from being silently repointed; a different adapter or credential locator requires explicit revocation first.
+- Kept adapter registration process-local so restart preserves identity but still fails closed until the expected adapter is explicitly installed and healthy.
+- Kept credential references out of `social.publish` action payloads and preserved all existing approval, expiry, payload-policy, idempotency, atomic execution, and publish-verification boundaries.
+- Added regression coverage for restart persistence, secret-free schema, credential reference validation, payload isolation, revocation after approval, stale approval after rebinding, and binding repoint protection.
+- Added ADR 0002 plus the mandatory evolution record/index update.
+- No cognitive capability score was increased; real OAuth lifecycle management and official platform adapters remain pending.
+
 ## v2026.09.02
 
 - Started the next daily Vayu development version.
