@@ -6,6 +6,7 @@ from hashlib import sha256
 from typing import Protocol
 
 from app.actions import ActionExecutorRegistry, ProposedActionStore
+from app.social_identity import DurableSocialBinding, SocialAccountStore, SocialCredentialReference
 
 
 SOCIAL_PUBLISH_TOOL = "social.publish"
@@ -42,6 +43,7 @@ class SocialAccountBinding:
     platform: SocialPlatform
     account_id: str
     adapter_id: str
+    credential_ref: SocialCredentialReference | None = None
 
     def __post_init__(self) -> None:
         if not self.account_id.strip() or len(self.account_id) > 200:
@@ -160,15 +162,20 @@ def _validated_receipt(receipt: PublishReceipt) -> PublishReceipt:
 class SocialMediaOrgan:
     """Coordinates social adapters while delegating authority to Vayu's action gate.
 
-    Account bindings are intentionally process-local in this first increment. Losing a
-    binding on restart fails closed instead of retaining stale authority. Tokens and
-    OAuth material are never accepted by this contract.
+    Account identity is durable, but only non-secret binding metadata is stored.
+    Adapter registration remains process-local and therefore fails closed after restart
+    until the runtime explicitly installs an adapter. OAuth/token material is never
+    accepted by action payloads or this identity store.
     """
 
-    def __init__(self, action_store: ProposedActionStore):
+    def __init__(
+        self,
+        action_store: ProposedActionStore,
+        account_store: SocialAccountStore | None = None,
+    ):
         self.action_store = action_store
+        self.account_store = account_store or SocialAccountStore(db_path=str(action_store.db_path))
         self._adapters: dict[str, SocialPlatformAdapter] = {}
-        self._bindings: dict[tuple[SocialPlatform, str], SocialAccountBinding] = {}
 
     def register_adapter(self, adapter: SocialPlatformAdapter) -> None:
         adapter_id = _bounded_text(adapter.adapter_id, "adapter_id", 100)
@@ -185,7 +192,12 @@ class SocialMediaOrgan:
         health = adapter.health(binding.account_id)
         if not health.connected:
             raise ConnectionError(f"social platform is disconnected: {health.detail}")
-        self._bindings[(binding.platform, binding.account_id)] = binding
+        self.account_store.bind(
+            platform=binding.platform.value,
+            account_id=binding.account_id,
+            adapter_id=binding.adapter_id,
+            credential_ref=binding.credential_ref,
+        )
         return SocialOrganEvent(
             kind="connected",
             platform=binding.platform,
@@ -193,16 +205,33 @@ class SocialMediaOrgan:
             message="Social account is connected and ready for approval-gated publishing.",
         )
 
+    def revoke_account(self, platform: SocialPlatform, account_id: str) -> SocialOrganEvent:
+        self.account_store.revoke(platform.value, account_id)
+        return SocialOrganEvent(
+            kind="disconnected",
+            platform=platform,
+            account_id=account_id,
+            message="Social account binding was revoked. Reconnect before publishing.",
+        )
+
     def status(self, platform: SocialPlatform, account_id: str) -> SocialOrganEvent:
-        binding = self._bindings.get((platform, account_id))
-        if binding is None:
+        binding = self.account_store.get(platform.value, account_id)
+        if binding is None or not binding.enabled:
             return SocialOrganEvent(
                 kind="disconnected",
                 platform=platform,
                 account_id=account_id,
                 message="Social account is not bound to an available Vayu adapter.",
             )
-        health = self._adapters[binding.adapter_id].health(account_id)
+        adapter = self._adapters.get(binding.adapter_id)
+        if adapter is None or adapter.platform != platform:
+            return SocialOrganEvent(
+                kind="disconnected",
+                platform=platform,
+                account_id=account_id,
+                message="Social account identity is known, but its platform adapter is unavailable.",
+            )
+        health = adapter.health(account_id)
         return SocialOrganEvent(
             kind="connected" if health.connected else "disconnected",
             platform=platform,
@@ -214,9 +243,9 @@ class SocialMediaOrgan:
             ),
         )
 
-    def _resolve(self, platform: SocialPlatform, account_id: str) -> tuple[SocialAccountBinding, SocialPlatformAdapter]:
-        binding = self._bindings.get((platform, account_id))
-        if binding is None:
+    def _resolve(self, platform: SocialPlatform, account_id: str) -> tuple[DurableSocialBinding, SocialPlatformAdapter]:
+        binding = self.account_store.get(platform.value, account_id)
+        if binding is None or not binding.enabled:
             raise PermissionError("social account is not explicitly bound")
         adapter = self._adapters.get(binding.adapter_id)
         if adapter is None or adapter.platform != platform:
@@ -250,6 +279,7 @@ class SocialMediaOrgan:
                 "platform": platform.value,
                 "account_id": account_id,
                 "adapter_id": binding.adapter_id,
+                "binding_revision": binding.revision,
                 "text": normalized_text,
                 "media_refs": list(media_refs),
                 "idempotency_key": normalized_key,
@@ -270,18 +300,19 @@ class SocialMediaOrgan:
             platform = SocialPlatform(str(payload["platform"]))
             account_id = str(payload["account_id"])
             adapter_id = str(payload["adapter_id"])
+            binding_revision = int(payload["binding_revision"])
             text = str(payload["text"])
             media_refs_raw = payload.get("media_refs", [])
             idempotency_key = str(payload["idempotency_key"])
-        except (KeyError, ValueError) as exc:
+        except (KeyError, ValueError, TypeError) as exc:
             raise ValueError("invalid social publish payload") from exc
         if not isinstance(media_refs_raw, list) or not all(isinstance(item, str) for item in media_refs_raw):
             raise ValueError("media_refs must be a list of strings")
         media_refs = tuple(media_refs_raw)
 
         binding, adapter = self._resolve(platform, account_id)
-        if binding.adapter_id != adapter_id:
-            raise PermissionError("approved adapter binding changed before execution")
+        if binding.adapter_id != adapter_id or binding.revision != binding_revision:
+            raise PermissionError("approved social identity changed before execution")
         capabilities = adapter.capabilities(account_id)
         normalized_text = _bounded_text(text, "text", capabilities.max_text_chars)
         normalized_key = _validate_idempotency_key(idempotency_key)

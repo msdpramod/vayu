@@ -4,6 +4,7 @@ Evolution records created from 2026-09-02 onward use `docs/evolution/YYYY/MM/YYY
 
 ## 2026-09
 
+- [2026-09-03 04:01 — Durable Social Identity](2026/09/2026-09-03-0401-durable-social-identity.md)
 - [2026-09-02 04:05 — v2026.09.02 Social Organ release](2026/09/2026-09-02-0405-social-organ-release.md)
 - [2026-09-02 04:00 — Social Media Organ foundation](2026/09/2026-09-02-0400-social-organ-foundation.md)
 - Legacy: `2026-09-01-counterfactual-world.md`
