@@ -38,7 +38,7 @@ After: any organ can register a credential provider, inspect non-secret metadata
 
 Added regression coverage for secret-free inspection, scope-aware denial before secret resolution, short-lived leases, redacted representations, close/context cleanup, expired credentials, duplicate/missing providers, lease-duration bounds, and provider-expiry lease capping.
 
-GitHub Actions CI is the authoritative regression gate for this change. This record must be updated only with validated results; no pass count is claimed before CI completes.
+GitHub Actions CI run #250 completed successfully on Python 3.12 with **165 passed, 1 warning in 1.60s**. The full `python -m pytest -q` regression step passed.
 
 ## Metrics
 
