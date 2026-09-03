@@ -1,5 +1,18 @@
 # Changelog
 
+## v2026.09.04
+
+- Started the next daily Vayu development version.
+- Added a provider-neutral Credential Provider Cortex so organs can inspect credential availability/scopes without resolving secret material.
+- Added explicit process-local provider registration plus fail-closed handling for missing providers, mismatched metadata, unavailable scopes, and expired credentials.
+- Added short-lived in-memory credential leases capped to 15 minutes with redacted representations, scope checks, context-manager cleanup, and best-effort byte-buffer zeroization.
+- Added a deterministic `MemoryCredentialProvider` for CI/development while keeping production secret-store implementations behind the same contract.
+- Kept durable state limited to non-secret provider/key locators; no OAuth/access/refresh token, password, cookie, or secret storage field was introduced.
+- Preserved the Social Media Organ approval boundary: possessing or resolving a credential does not approve or execute `social.publish`.
+- Added regression coverage for secret-free inspection, scope denial before resolution, lease expiry/bounds, cleanup, provider expiry, and missing/duplicate providers.
+- Added ADR 0003 plus the mandatory evolution record/index update.
+- No cognitive capability score was increased; official provider integrations, OAuth refresh/rotation, and execution-time Social Media Organ leasing remain pending.
+
 ## v2026.09.03
 
 - Started the next daily Vayu development version.
