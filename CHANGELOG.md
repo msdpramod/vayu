@@ -1,5 +1,18 @@
 # Changelog
 
+## v2026.09.05
+
+- Started the next daily Vayu development version.
+- Connected the Credential Provider Cortex to the Social Media Organ only at claimed execution time; drafting and approval remain secret-free.
+- Extended social adapters with explicit bounded credential-scope declarations and a credential-aware publish path using short-lived `CredentialLease` objects.
+- Required credentialed adapters to have an explicit durable non-secret credential reference and an installed provider registry; missing references/providers fail closed.
+- Enforced required social scopes before provider resolution so insufficiently scoped credentials never expose secret material.
+- Kept credential references, OAuth material, passwords, cookies, and tokens out of `social.publish` action payloads and durable action/audit state.
+- Closed credential leases on both successful publish and adapter-failure paths while preserving verified publish receipts as the success boundary.
+- Added regression coverage proving secrets are not resolved before approval, wrong scopes fail before resolution, missing references fail closed, and leases close after success/failure.
+- Added ADR 0004 plus the mandatory evolution record/index update.
+- No cognitive capability score was increased; production credential providers, OAuth refresh/rotation, normalized platform errors/rate limits, and the first official LinkedIn adapter remain pending.
+
 ## v2026.09.04
 
 - Started the next daily Vayu development version.

@@ -6,12 +6,14 @@ from hashlib import sha256
 from typing import Protocol
 
 from app.actions import ActionExecutorRegistry, ProposedActionStore
+from app.credentials import CredentialLease, CredentialProviderRegistry
 from app.social_identity import DurableSocialBinding, SocialAccountStore, SocialCredentialReference
 
 
 SOCIAL_PUBLISH_TOOL = "social.publish"
 MAX_MEDIA_REFS = 8
 MAX_IDEMPOTENCY_KEY_LENGTH = 128
+MAX_CREDENTIAL_SCOPES = 16
 
 
 class SocialPlatform(str, Enum):
@@ -109,7 +111,13 @@ class SocialOrganEvent:
 
 
 class SocialPlatformAdapter(Protocol):
-    """Official-platform adapter contract. Credentials remain outside Vayu action payloads."""
+    """Official-platform adapter contract.
+
+    Adapters declare the credential scopes needed for publishing. Secret material is
+    never supplied during proposal/approval. If scopes are required, the organ leases
+    credentials only inside the executor after Vayu has atomically claimed an approved
+    action for execution.
+    """
 
     adapter_id: str
     platform: SocialPlatform
@@ -118,7 +126,15 @@ class SocialPlatformAdapter(Protocol):
 
     def health(self, account_id: str) -> SocialHealth: ...
 
+    def credential_scopes(self, account_id: str) -> tuple[str, ...]: ...
+
     def publish(self, request: SocialPublishRequest) -> PublishReceipt: ...
+
+    def publish_with_credential(
+        self,
+        request: SocialPublishRequest,
+        credential: CredentialLease,
+    ) -> PublishReceipt: ...
 
 
 def _bounded_text(value: str, field: str, limit: int) -> str:
@@ -151,6 +167,17 @@ def _validate_media_refs(media_refs: tuple[str, ...], capabilities: SocialCapabi
             raise ValueError(f"media type '{media_type}' is not supported by this adapter")
 
 
+def _validate_credential_scopes(scopes: tuple[str, ...]) -> tuple[str, ...]:
+    if not isinstance(scopes, tuple):
+        raise ValueError("credential scopes must be a tuple")
+    if len(scopes) > MAX_CREDENTIAL_SCOPES:
+        raise ValueError(f"credential scopes are bounded to {MAX_CREDENTIAL_SCOPES}")
+    normalized = tuple(_bounded_text(scope, "credential_scope", 120) for scope in scopes)
+    if len(set(normalized)) != len(normalized):
+        raise ValueError("credential scopes must not contain duplicates")
+    return normalized
+
+
 def _validated_receipt(receipt: PublishReceipt) -> PublishReceipt:
     if not receipt.verified:
         raise RuntimeError("platform publish was not verified")
@@ -163,18 +190,21 @@ class SocialMediaOrgan:
     """Coordinates social adapters while delegating authority to Vayu's action gate.
 
     Account identity is durable, but only non-secret binding metadata is stored.
-    Adapter registration remains process-local and therefore fails closed after restart
-    until the runtime explicitly installs an adapter. OAuth/token material is never
-    accepted by action payloads or this identity store.
+    Adapter and credential-provider registration remain process-local and therefore
+    fail closed after restart until the runtime explicitly installs them. Secret
+    material is resolved only inside execution, never into action payloads or durable
+    social identity state.
     """
 
     def __init__(
         self,
         action_store: ProposedActionStore,
         account_store: SocialAccountStore | None = None,
+        credential_registry: CredentialProviderRegistry | None = None,
     ):
         self.action_store = action_store
         self.account_store = account_store or SocialAccountStore(db_path=str(action_store.db_path))
+        self.credential_registry = credential_registry
         self._adapters: dict[str, SocialPlatformAdapter] = {}
 
     def register_adapter(self, adapter: SocialPlatformAdapter) -> None:
@@ -271,6 +301,7 @@ class SocialMediaOrgan:
         normalized_text = _bounded_text(text, "text", capabilities.max_text_chars)
         normalized_key = _validate_idempotency_key(idempotency_key)
         _validate_media_refs(media_refs, capabilities)
+        _validate_credential_scopes(adapter.credential_scopes(account_id))
 
         action = self.action_store.propose(
             tool=SOCIAL_PUBLISH_TOOL,
@@ -295,6 +326,27 @@ class SocialMediaOrgan:
         )
         return action, event
 
+    def _publish_with_execution_time_credential(
+        self,
+        *,
+        binding: DurableSocialBinding,
+        adapter: SocialPlatformAdapter,
+        request: SocialPublishRequest,
+    ) -> PublishReceipt:
+        required_scopes = _validate_credential_scopes(adapter.credential_scopes(request.account_id))
+        if not required_scopes:
+            return adapter.publish(request)
+        if binding.credential_ref is None:
+            raise PermissionError("social adapter requires a credential reference")
+        if self.credential_registry is None:
+            raise PermissionError("credential provider registry is unavailable")
+
+        with self.credential_registry.lease(
+            binding.credential_ref,
+            required_scopes=required_scopes,
+        ) as credential:
+            return adapter.publish_with_credential(request, credential)
+
     def execute_publish_payload(self, payload: dict[str, object]) -> dict[str, object]:
         try:
             platform = SocialPlatform(str(payload["platform"]))
@@ -318,14 +370,17 @@ class SocialMediaOrgan:
         normalized_key = _validate_idempotency_key(idempotency_key)
         _validate_media_refs(media_refs, capabilities)
 
-        receipt = adapter.publish(
-            SocialPublishRequest(
-                platform=platform,
-                account_id=account_id,
-                text=normalized_text,
-                media_refs=media_refs,
-                idempotency_key=normalized_key,
-            )
+        request = SocialPublishRequest(
+            platform=platform,
+            account_id=account_id,
+            text=normalized_text,
+            media_refs=media_refs,
+            idempotency_key=normalized_key,
+        )
+        receipt = self._publish_with_execution_time_credential(
+            binding=binding,
+            adapter=adapter,
+            request=request,
         )
         return _validated_receipt(receipt).to_dict()
 
@@ -363,6 +418,10 @@ class MockSocialAdapter:
             detail="mock adapter connected" if self.connected else "mock adapter disconnected",
         )
 
+    def credential_scopes(self, account_id: str) -> tuple[str, ...]:
+        _bounded_text(account_id, "account_id", 200)
+        return ()
+
     def publish(self, request: SocialPublishRequest) -> PublishReceipt:
         if not self.connected:
             raise ConnectionError("mock adapter disconnected")
@@ -381,3 +440,10 @@ class MockSocialAdapter:
         )
         self._receipts[request.idempotency_key] = receipt
         return receipt
+
+    def publish_with_credential(
+        self,
+        request: SocialPublishRequest,
+        credential: CredentialLease,
+    ) -> PublishReceipt:
+        raise RuntimeError("mock adapter does not declare credential scopes")
