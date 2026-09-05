@@ -1,5 +1,16 @@
 # Changelog
 
+## v2026.09.06
+
+- Started the Dataset + World Learning Organ with Source Registry schema v1 rather than prematurely adding broad crawlers or downloaders.
+- Added fail-closed source-purpose authorization separating `TRAINING`, `RETRIEVAL`, `EVALUATION`, and `METADATA` use.
+- Required enabled state, explicit training use, verified rights, and a concrete license identifier before any source can be authorized for model training.
+- Added a small auditable registry manifest for Wikidata, Wikipedia dumps, GDELT, NVD/CVE, and public GitHub code; public GitHub code remains disabled and several sources remain retrieval/metadata-only pending rights review.
+- Added bounded validation for duplicate IDs, insecure/non-HTTPS official references, inconsistent allowed uses, and incompatible or unverified training declarations.
+- Added regression coverage for verified training authorization and fail-closed rights, disabled-source, duplicate, and malformed-reference paths.
+- Added ADR 0005 and the mandatory evolution record/index update.
+- No corpus was downloaded, no training tokens were produced, no model weights were changed, and no cognitive score was increased.
+
 ## v2026.09.05
 
 - Started the next daily Vayu development version.
