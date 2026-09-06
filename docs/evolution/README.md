@@ -4,6 +4,7 @@ Evolution records created from 2026-09-02 onward use `docs/evolution/YYYY/MM/YYY
 
 ## 2026-09
 
+- [2026-09-07 03:57 — Corpus Factory admission boundary](2026/09/2026-09-07-0357-corpus-admission.md)
 - [2026-09-06 04:03 — Dataset + World Learning Source Registry](2026/09/2026-09-06-0403-source-registry.md)
 - [2026-09-05 04:02 — Execution-time Social Credential Leasing](2026/09/2026-09-05-0402-execution-time-social-credential-leasing.md)
 - [2026-09-04 04:00 — Credential Provider Cortex](2026/09/2026-09-04-0400-credential-provider-cortex.md)

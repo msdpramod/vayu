@@ -1,5 +1,15 @@
 # Changelog
 
+## v2026.09.07
+
+- Added the first deterministic Vayu Corpus Factory admission boundary on top of Source Registry training authorization.
+- Added normalization, SHA-256 content provenance, exact deduplication, basic secret/PII rejection, benchmark-contamination deny-list checks, deterministic train/validation/test assignment, token estimates, and bounded candidate/resource limits.
+- Added versioned manifest schema v1 with deterministic JSON output, source/split/rejection counts, admitted hashes, license coverage, and content/provenance-derived dataset version fingerprints without embedding raw corpus text in manifests.
+- Kept corpus admission no-network and side-effect-free; it cannot acquire data, train models, mutate model weights, or bypass source-rights authorization.
+- Added regression coverage for licensed admission, unlicensed-source denial, normalization-aware duplicate rejection, synthetic secret/PII rejection, contamination rejection, deterministic manifests, dataset-version changes, and malformed contamination registries.
+- Added ADR 0006 and the mandatory evolution record/index update.
+- No large datasets were downloaded or committed; no production model weights were changed and no Vayu-native independence claim was made.
+
 ## v2026.09.06
 
 - Started the Dataset + World Learning Organ with Source Registry schema v1 rather than prematurely adding broad crawlers or downloaders.
